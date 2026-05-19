@@ -1,15 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'core/constants/app_strings.dart';
+import 'core/data/app_database.dart';
+import 'core/data/app_settings.dart';
 import 'core/theme/app_theme.dart';
 import 'routing/app_router.dart';
 
-void main() {
-  runApp(const JayaBuanaApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  await SettingsService.instance.ensureDefaults();
+  final hasAdmin = await AppDatabase.instance.hasAdmin();
+
+  runApp(JayaBuanaApp(
+    initialRoute: hasAdmin ? AppRoutes.camera : AppRoutes.registration,
+  ));
 }
 
 class JayaBuanaApp extends StatelessWidget {
-  const JayaBuanaApp({super.key});
+  final String initialRoute;
+  const JayaBuanaApp({super.key, required this.initialRoute});
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +34,7 @@ class JayaBuanaApp extends StatelessWidget {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: ThemeMode.light,
-      initialRoute: AppRoutes.dev,
+      initialRoute: initialRoute,
       onGenerateRoute: AppRouter.onGenerate,
     );
   }

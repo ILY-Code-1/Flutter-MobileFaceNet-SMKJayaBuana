@@ -1,17 +1,21 @@
 import 'dart:async';
-import 'dart:math' as math;
+import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/data/app_database.dart';
+import '../../../../core/data/models.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/utils/mock_data.dart';
-import '../../../../core/widgets/jb_icons.dart';
+import '../../../../core/widgets/jb_avatar.dart';
 import '../../../../routing/app_router.dart';
 
+/// Arguments: {
+///   'studentId': int,
+///   'action': 'in' | 'out',
+///   'time': ISO-8601 string,
+///   'status': 'present' | 'late' (optional; only for 'in'),
+/// }
 class SuccessPage extends StatefulWidget {
   const SuccessPage({super.key});
 
@@ -19,434 +23,327 @@ class SuccessPage extends StatefulWidget {
   State<SuccessPage> createState() => _SuccessPageState();
 }
 
-class _SuccessPageState extends State<SuccessPage>
-    with SingleTickerProviderStateMixin {
-  static const Duration _autoReturn = Duration(seconds: 5);
-  late final AnimationController _controller;
-  Timer? _navTimer;
+class _SuccessPageState extends State<SuccessPage> {
+  Student? _student;
+  String _action = 'in';
+  DateTime? _time;
+  AttendanceStatus _status = AttendanceStatus.present;
+  int _remaining = 5;
+  Timer? _ticker;
 
   @override
   void initState() {
     super.initState();
-    _controller =
-        AnimationController(vsync: this, duration: _autoReturn)..forward();
-    _navTimer = Timer(_autoReturn, () {
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, AppRoutes.camera);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final args = ModalRoute.of(context)?.settings.arguments
+        as Map<String, dynamic>?;
+    final id = args?['studentId'] as int?;
+    _action = (args?['action'] as String?) ?? 'in';
+    final ts = args?['time'] as String?;
+    if (ts != null) _time = DateTime.tryParse(ts);
+    final st = args?['status'] as String?;
+    if (st != null) _status = AttendanceStatusX.fromCode(st);
+    if (id != null) {
+      _student = await AppDatabase.instance.getStudent(id);
+    }
+    if (!mounted) return;
+    setState(() {});
+    _startCountdown();
+  }
+
+  void _startCountdown() {
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() => _remaining -= 1);
+      if (_remaining <= 0) {
+        _ticker?.cancel();
+        Navigator.pushNamedAndRemoveUntil(
+            context, AppRoutes.camera, (r) => false);
       }
     });
   }
 
   @override
-  void dispose() {
-    _navTimer?.cancel();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final student = MockData.students[2]; // Chika Maharani
-    final firstName = student.name.split(' ').first;
+    final isIn = _action == 'in';
+    final bgTop = isIn ? const Color(0xFF073B2F) : const Color(0xFF1F2A52);
+    final bgBottom = isIn ? const Color(0xFF0C0D24) : const Color(0xFF0A1426);
+    final headline =
+        isIn ? AppStrings.clockedInSuccess : AppStrings.clockedOutSuccess;
+    final firstName = _student?.name.split(' ').first ?? 'student';
+    final timeLabel = _time == null
+        ? '--:--'
+        : '${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}';
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
-      child: Scaffold(
-        backgroundColor: const Color(0xFF0F3A2E),
-        body: Stack(
-          children: [
-            const Positioned.fill(child: _SuccessBackground()),
-            SafeArea(
+    return Scaffold(
+      backgroundColor: bgBottom,
+      body: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [bgTop, bgBottom],
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Center(
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Spacer(flex: 2),
-                  _AvatarWithRings(student: student),
+                  if (_student != null)
+                    _AvatarRing(student: _student!)
+                  else
+                    const SizedBox(width: 120, height: 120),
                   const SizedBox(height: AppSpacing.x18),
                   Text(
-                    AppStrings.clockedInSuccess,
+                    headline,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.darkPrimary,
-                      fontSize: 11,
+                    style: const TextStyle(
+                      color: Color(0xFFE8C547),
                       fontWeight: FontWeight.w900,
-                      letterSpacing: 1.6,
+                      fontSize: 13,
+                      letterSpacing: 2,
                       height: 1.3,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.x10),
-                  _WelcomeLine(firstName: firstName),
+                  const SizedBox(height: AppSpacing.x8),
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                      ),
+                      children: [
+                        TextSpan(
+                            text: isIn
+                                ? AppStrings.welcomeName
+                                : AppStrings.goodbyeName),
+                        TextSpan(
+                          text: '$firstName ',
+                          style: const TextStyle(
+                            color: Color(0xFFE8C547),
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                        const TextSpan(text: '👋'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.x18),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.x22,
+                        vertical: AppSpacing.x14),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(AppSpacing.x14),
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.1)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isIn ? AppStrings.arrival : AppStrings.departure,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.6),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              timeLabel,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: AppSpacing.x22),
+                        Container(
+                          width: 1,
+                          height: 40,
+                          color: Colors.white.withValues(alpha: 0.18),
+                        ),
+                        const SizedBox(width: AppSpacing.x22),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              AppStrings.status,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.6),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: _statusColor(_status),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.x6),
+                                Text(
+                                  _statusLabel(_status, isIn),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.x22),
-                  const _ArrivalStatusCard(),
-                  const SizedBox(height: AppSpacing.x22),
-                  _SuccessSubtext(),
-                  const Spacer(flex: 3),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.x22),
+                    child: RichText(
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          height: 1.5,
+                        ),
+                        children: [
+                          const TextSpan(text: AppStrings.successSub),
+                          TextSpan(
+                            text: '${_remaining}s',
+                            style: const TextStyle(
+                              color: Color(0xFFE8C547),
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: AnimatedBuilder(
-                animation: _controller,
-                builder: (_, _) => SizedBox(
-                  height: 6,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        flex: (_controller.value * 1000).round(),
-                        child: Container(color: AppColors.darkPrimary),
-                      ),
-                      Expanded(
-                        flex: (1000 - _controller.value * 1000).round(),
-                        child: Container(
-                          color: Colors.white.withValues(alpha: 0.08),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SuccessBackground extends StatelessWidget {
-  const _SuccessBackground();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: RadialGradient(
-          center: Alignment(0, -0.3),
-          radius: 1.2,
-          colors: [
-            Color(0xFF1F6B52),
-            Color(0xFF0F3A2E),
-            Color(0xFF071F1A),
-          ],
-        ),
-      ),
-      child: CustomPaint(painter: _ParticlePainter()),
-    );
-  }
-}
-
-class _ParticlePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rand = math.Random(7);
-    final p = Paint();
-    for (int i = 0; i < 30; i++) {
-      final x = rand.nextDouble() * size.width;
-      final y = rand.nextDouble() * size.height;
-      final r = rand.nextDouble() * 2.2 + 1.0;
-      final alpha = rand.nextDouble() * 0.4 + 0.15;
-      p.color = Colors.white.withValues(alpha: alpha);
-      canvas.drawCircle(Offset(x, y), r, p);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _ParticlePainter oldDelegate) => false;
-}
-
-class _AvatarWithRings extends StatelessWidget {
-  final MockStudent student;
-  const _AvatarWithRings({required this.student});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 220,
-      height: 220,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          _Ring(diameter: 200, color: AppColors.darkPrimary.withValues(alpha: 0.18)),
-          _Ring(diameter: 160, color: AppColors.darkPrimary.withValues(alpha: 0.4), dashed: true),
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 110,
-                height: 110,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF7AC9A8), Color(0xFF3D8C72)],
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  student.initials,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: -6,
-                right: -6,
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: AppColors.darkSuccess,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                        color: const Color(0xFF0F3A2E), width: 3),
-                  ),
-                  alignment: Alignment.center,
-                  child: const JbIcon(JbIcon.check,
-                      size: 16, color: Color(0xFF0F3A2E)),
-                ),
-              ),
-            ],
           ),
         ],
       ),
     );
   }
-}
 
-class _Ring extends StatelessWidget {
-  final double diameter;
-  final Color color;
-  final bool dashed;
-
-  const _Ring({
-    required this.diameter,
-    required this.color,
-    this.dashed = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: diameter,
-      height: diameter,
-      child: CustomPaint(painter: _RingPainter(color: color, dashed: dashed)),
-    );
-  }
-}
-
-class _RingPainter extends CustomPainter {
-  final Color color;
-  final bool dashed;
-
-  _RingPainter({required this.color, required this.dashed});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = color
-      ..strokeWidth = 1.4
-      ..style = PaintingStyle.stroke;
-
-    final r = size.width / 2;
-    final centre = Offset(r, r);
-    if (!dashed) {
-      canvas.drawCircle(centre, r - 1, p);
-      return;
-    }
-    const segments = 64;
-    for (int i = 0; i < segments; i += 2) {
-      final a1 = (i / segments) * 2 * math.pi;
-      final a2 = ((i + 1) / segments) * 2 * math.pi;
-      final p1 = Offset(centre.dx + (r - 1) * math.cos(a1),
-          centre.dy + (r - 1) * math.sin(a1));
-      final p2 = Offset(centre.dx + (r - 1) * math.cos(a2),
-          centre.dy + (r - 1) * math.sin(a2));
-      canvas.drawLine(p1, p2, p);
+  Color _statusColor(AttendanceStatus s) {
+    switch (s) {
+      case AttendanceStatus.present:
+        return const Color(0xFF5DD49A);
+      case AttendanceStatus.late:
+        return const Color(0xFFE8A35C);
+      case AttendanceStatus.absent:
+        return const Color(0xFFE87A8E);
     }
   }
 
-  @override
-  bool shouldRepaint(covariant _RingPainter old) =>
-      old.color != color || old.dashed != dashed;
+  String _statusLabel(AttendanceStatus s, bool isIn) {
+    if (!isIn) return 'Checked out';
+    switch (s) {
+      case AttendanceStatus.present:
+        return AppStrings.onTime;
+      case AttendanceStatus.late:
+        return 'Late';
+      case AttendanceStatus.absent:
+        return 'Absent';
+    }
+  }
 }
 
-class _WelcomeLine extends StatelessWidget {
-  final String firstName;
-  const _WelcomeLine({required this.firstName});
+class _AvatarRing extends StatelessWidget {
+  final Student student;
+  const _AvatarRing({required this.student});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    final photo = student.photoPath;
+    Widget child;
+    if (photo != null && File(photo).existsSync()) {
+      child = ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Image.file(File(photo),
+            width: 110, height: 110, fit: BoxFit.cover),
+      );
+    } else {
+      child = JbAvatar(
+        initials: student.initials,
+        hue: student.hue,
+        size: 110,
+        fontSize: 36,
+      );
+    }
+    return Stack(
+      alignment: Alignment.center,
       children: [
-        Text(
-          AppStrings.welcomeName,
-          style: theme.textTheme.headlineLarge?.copyWith(
-            color: Colors.white,
-            fontSize: 26,
-            fontWeight: FontWeight.w900,
+        Container(
+          width: 170,
+          height: 170,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: const Color(0xFFE8C547).withValues(alpha: 0.5),
+              width: 1.5,
+            ),
           ),
         ),
-        Text(
-          firstName,
-          style: theme.textTheme.headlineLarge?.copyWith(
-            color: AppColors.darkPrimary,
-            fontSize: 26,
-            fontWeight: FontWeight.w900,
-            fontStyle: FontStyle.italic,
+        Container(
+          width: 140,
+          height: 140,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: const Color(0xFFE8C547).withValues(alpha: 0.8),
+              width: 1.5,
+              style: BorderStyle.solid,
+            ),
           ),
         ),
-        const SizedBox(width: 6),
-        const JbIcon(JbIcon.sparkle, size: 22, color: AppColors.darkPrimary),
+        child,
+        const Positioned(
+          right: 28,
+          bottom: 28,
+          child: CircleAvatar(
+            radius: 14,
+            backgroundColor: Color(0xFF1F7A4A),
+            child: Icon(Icons.check, color: Colors.white, size: 18),
+          ),
+        ),
       ],
-    );
-  }
-}
-
-class _ArrivalStatusCard extends StatelessWidget {
-  const _ArrivalStatusCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.x28),
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.x22, vertical: AppSpacing.x14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-            color: Colors.white.withValues(alpha: 0.12), width: 1),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppStrings.arrival,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.55),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.3,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '07:14',
-                      style: AppTypography.mono(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 3),
-                      child: Text(
-                        'AM',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.55),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Container(
-            width: 1,
-            height: 42,
-            color: Colors.white.withValues(alpha: 0.12),
-            margin: const EdgeInsets.symmetric(horizontal: AppSpacing.x14),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppStrings.status,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.55),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.3,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: AppColors.darkSuccess,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      AppStrings.onTime,
-                      style: TextStyle(
-                        color: AppColors.darkSuccess,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SuccessSubtext extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x28),
-      child: RichText(
-        textAlign: TextAlign.center,
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: AppStrings.successSub,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.72),
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                height: 1.45,
-              ),
-            ),
-            const TextSpan(
-              text: AppStrings.successCountdown,
-              style: TextStyle(
-                color: AppColors.darkPrimary,
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

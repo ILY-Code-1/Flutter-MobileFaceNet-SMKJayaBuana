@@ -1,0 +1,218 @@
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+
+import '../../../../core/constants/app_strings.dart';
+import 'report_aggregator.dart';
+
+class ReportPdf {
+  ReportPdf._();
+
+  /// Build the PDF and open the platform share / print dialog.
+  static Future<void> exportAndShare({
+    required String title,
+    required StudentSummaryList summary,
+  }) async {
+    final doc = pw.Document();
+
+    const navy = PdfColor.fromInt(0xFF0F2545);
+    const gold = PdfColor.fromInt(0xFFC8A431);
+    const green = PdfColor.fromInt(0xFF1F7A4A);
+    const orange = PdfColor.fromInt(0xFFB8732C);
+    const red = PdfColor.fromInt(0xFFB0344A);
+    const muted = PdfColor.fromInt(0xFF5A6584);
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.fromLTRB(36, 36, 36, 36),
+        build: (context) => [
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      AppStrings.schoolFullName,
+                      style: pw.TextStyle(
+                        color: gold,
+                        fontWeight: pw.FontWeight.bold,
+                        fontSize: 10,
+                        letterSpacing: 1.4,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      'Attendance Report',
+                      style: pw.TextStyle(
+                        color: navy,
+                        fontWeight: pw.FontWeight.bold,
+                        fontSize: 22,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      title,
+                      style: pw.TextStyle(
+                        color: muted,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              pw.Container(
+                padding:
+                    const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: pw.BoxDecoration(
+                  color: navy,
+                  borderRadius: pw.BorderRadius.circular(6),
+                ),
+                child: pw.Text(
+                  DateTime.now().toIso8601String().substring(0, 10),
+                  style: const pw.TextStyle(color: PdfColors.white, fontSize: 10),
+                ),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 18),
+          pw.Row(
+            children: [
+              _recap('PRESENT', summary.totalPresent, green),
+              pw.SizedBox(width: 8),
+              _recap('LATE', summary.totalLate, orange),
+              pw.SizedBox(width: 8),
+              _recap('ABSENT', summary.totalAbsent, red),
+            ],
+          ),
+          pw.SizedBox(height: 18),
+          pw.Table(
+            border: pw.TableBorder.symmetric(
+              inside:
+                  const pw.BorderSide(color: PdfColor.fromInt(0xFFE6DFCB)),
+            ),
+            columnWidths: const {
+              0: pw.FlexColumnWidth(4),
+              1: pw.FlexColumnWidth(2),
+              2: pw.FlexColumnWidth(1),
+              3: pw.FlexColumnWidth(1),
+              4: pw.FlexColumnWidth(1),
+              5: pw.FlexColumnWidth(1.5),
+            },
+            children: [
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(
+                    color: PdfColor.fromInt(0xFFF2EDE0)),
+                children: [
+                  _th('Student'),
+                  _th('NIS / Class'),
+                  _th('P', align: pw.TextAlign.center),
+                  _th('L', align: pw.TextAlign.center),
+                  _th('A', align: pw.TextAlign.center),
+                  _th('Attendance %', align: pw.TextAlign.right),
+                ],
+              ),
+              for (final s in summary.rows)
+                pw.TableRow(
+                  children: [
+                    _td(s.name, bold: true),
+                    _td('${s.nis} · ${s.className ?? '—'}'),
+                    _td('${s.present}',
+                        color: green, align: pw.TextAlign.center, bold: true),
+                    _td('${s.late}',
+                        color: orange,
+                        align: pw.TextAlign.center,
+                        bold: true),
+                    _td('${s.absent}',
+                        color: red, align: pw.TextAlign.center, bold: true),
+                    _td('${s.percentage}%',
+                        align: pw.TextAlign.right, bold: true),
+                  ],
+                ),
+            ],
+          ),
+          pw.SizedBox(height: 18),
+          pw.Text(
+            'Generated by Absensi SMK Jaya Buana · only completed (checked-out) attendance is included.',
+            style: const pw.TextStyle(color: muted, fontSize: 9),
+          ),
+        ],
+      ),
+    );
+
+    final bytes = await doc.save();
+    await Printing.sharePdf(
+      bytes: bytes,
+      filename:
+          'attendance_${DateTime.now().millisecondsSinceEpoch}.pdf',
+    );
+  }
+
+  static pw.Widget _recap(String label, int value, PdfColor accent) {
+    return pw.Expanded(
+      child: pw.Container(
+        padding: const pw.EdgeInsets.all(10),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: const PdfColor.fromInt(0xFFE6DFCB)),
+          borderRadius: pw.BorderRadius.circular(8),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              label,
+              style: const pw.TextStyle(
+                fontSize: 9,
+                color: PdfColor.fromInt(0xFF5A6584),
+                letterSpacing: 1.2,
+              ),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Text(
+              '$value',
+              style: pw.TextStyle(
+                fontSize: 18,
+                fontWeight: pw.FontWeight.bold,
+                color: accent,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static pw.Widget _th(String s, {pw.TextAlign? align}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: pw.Text(
+        s,
+        textAlign: align ?? pw.TextAlign.left,
+        style: pw.TextStyle(
+          fontSize: 9,
+          fontWeight: pw.FontWeight.bold,
+          color: const PdfColor.fromInt(0xFF5A6584),
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  static pw.Widget _td(String s,
+      {PdfColor? color, pw.TextAlign? align, bool bold = false}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: pw.Text(
+        s,
+        textAlign: align ?? pw.TextAlign.left,
+        style: pw.TextStyle(
+          fontSize: 10,
+          color: color ?? const PdfColor.fromInt(0xFF0B1A35),
+          fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+        ),
+      ),
+    );
+  }
+}

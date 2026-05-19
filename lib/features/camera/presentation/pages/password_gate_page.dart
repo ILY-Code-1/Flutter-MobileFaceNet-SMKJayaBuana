@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/data/app_database.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/jb_button.dart';
@@ -8,8 +9,6 @@ import '../../../../core/widgets/jb_icons.dart';
 import '../../../../routing/app_router.dart';
 import '../widgets/numeric_keypad.dart';
 
-/// Shows the password gate as a modal bottom sheet.
-/// Routed via [AppRoutes.passwordGate] in [AppRouter.onGenerate].
 Future<void> showPasswordGateSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
@@ -21,7 +20,7 @@ Future<void> showPasswordGateSheet(BuildContext context) {
 }
 
 class PasswordGateSheet extends StatefulWidget {
-  static const int passwordLength = 6;
+  static const int maxPinLength = 8;
   const PasswordGateSheet({super.key});
 
   @override
@@ -29,16 +28,41 @@ class PasswordGateSheet extends StatefulWidget {
 }
 
 class _PasswordGateSheetState extends State<PasswordGateSheet> {
-  int _filled = 4;
+  String _pin = '';
+  String? _error;
+  bool _busy = false;
 
-  void _onDigit(int _) {
-    if (_filled >= PasswordGateSheet.passwordLength) return;
-    setState(() => _filled += 1);
+  void _onDigit(int d) {
+    if (_pin.length >= PasswordGateSheet.maxPinLength) return;
+    setState(() {
+      _pin += '$d';
+      _error = null;
+    });
   }
 
   void _onBackspace() {
-    if (_filled == 0) return;
-    setState(() => _filled -= 1);
+    if (_pin.isEmpty) return;
+    setState(() {
+      _pin = _pin.substring(0, _pin.length - 1);
+      _error = null;
+    });
+  }
+
+  Future<void> _unlock() async {
+    if (_pin.isEmpty) return;
+    setState(() => _busy = true);
+    final ok = await AppDatabase.instance.verifyPin(_pin);
+    if (!mounted) return;
+    if (!ok) {
+      setState(() {
+        _error = AppStrings.wrongPin;
+        _pin = '';
+        _busy = false;
+      });
+      return;
+    }
+    Navigator.pop(context);
+    Navigator.pushNamed(context, AppRoutes.menu);
   }
 
   @override
@@ -84,8 +108,7 @@ class _PasswordGateSheetState extends State<PasswordGateSheet> {
             ),
             const SizedBox(height: AppSpacing.x10),
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: AppSpacing.x14),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x14),
               child: Text(
                 AppStrings.adminAccessSub,
                 textAlign: TextAlign.center,
@@ -98,11 +121,18 @@ class _PasswordGateSheetState extends State<PasswordGateSheet> {
               ),
             ),
             const SizedBox(height: AppSpacing.x22),
-            _DotsRow(
-              filled: _filled,
-              length: PasswordGateSheet.passwordLength,
-            ),
-            const SizedBox(height: AppSpacing.x22),
+            _DotsRow(filled: _pin.length, max: PasswordGateSheet.maxPinLength),
+            const SizedBox(height: AppSpacing.x14),
+            if (_error != null)
+              Text(
+                _error!,
+                style: TextStyle(
+                  color: c.danger,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                ),
+              ),
+            const SizedBox(height: AppSpacing.x14),
             NumericKeypad(
               onDigit: _onDigit,
               onBackspace: _onBackspace,
@@ -113,7 +143,7 @@ class _PasswordGateSheetState extends State<PasswordGateSheet> {
                 Expanded(
                   child: JbButton.ghost(
                     label: AppStrings.cancel,
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: _busy ? null : () => Navigator.pop(context),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.x12),
@@ -121,11 +151,15 @@ class _PasswordGateSheetState extends State<PasswordGateSheet> {
                   flex: 2,
                   child: JbButton(
                     label: AppStrings.unlock,
-                    leading: const JbIcon(JbIcon.check, size: 18),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, AppRoutes.menu);
-                    },
+                    leading: _busy
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const JbIcon(JbIcon.check, size: 18),
+                    onPressed: _busy || _pin.isEmpty ? null : _unlock,
                   ),
                 ),
               ],
@@ -175,29 +209,42 @@ class _LockBadge extends StatelessWidget {
 
 class _DotsRow extends StatelessWidget {
   final int filled;
-  final int length;
-  const _DotsRow({required this.filled, required this.length});
+  final int max;
+  const _DotsRow({required this.filled, required this.max});
 
   @override
   Widget build(BuildContext context) {
     final c = context.jb;
+    final shown = filled.clamp(0, max);
+    final empties = (6 - shown).clamp(0, 6);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(length, (i) {
-        final isOn = i < filled;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x8),
-          child: Container(
-            width: 14,
-            height: 14,
-            decoration: BoxDecoration(
-              color: isOn ? c.primary : Colors.transparent,
-              shape: BoxShape.circle,
-              border: isOn ? null : Border.all(color: c.border, width: 1.6),
+      children: [
+        for (int i = 0; i < shown; i++)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x6),
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                color: c.primary,
+                shape: BoxShape.circle,
+              ),
             ),
           ),
-        );
-      }),
+        for (int i = 0; i < empties; i++)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x6),
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: c.border, width: 1.6),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

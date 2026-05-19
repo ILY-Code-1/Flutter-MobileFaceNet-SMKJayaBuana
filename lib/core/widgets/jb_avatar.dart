@@ -1,6 +1,15 @@
 import 'package:flutter/material.dart';
 
-import '../utils/mock_data.dart';
+class HueGradient {
+  static List<Color> fromHue(int hue) {
+    final c1 =
+        HSLColor.fromAHSL(1.0, hue.toDouble() % 360, 0.42, 0.74).toColor();
+    final c2 =
+        HSLColor.fromAHSL(1.0, (hue + 30).toDouble() % 360, 0.46, 0.58)
+            .toColor();
+    return [c1, c2];
+  }
+}
 
 class JbAvatar extends StatelessWidget {
   final String initials;

@@ -11,8 +11,36 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # UI
   flutter_svg: ^2.0.10+1
   google_fonts: ^6.2.1
+
+  # Storage
+  sqflite: ^2.3.3+1
+  sqflite_common_ffi: ^2.3.3
+  path: ^1.9.0
+  path_provider: ^2.1.4
+  shared_preferences: ^2.3.2
+
+  # Camera & images
+  camera: ^0.11.0+2
+  image_picker: ^1.1.2
+  image: ^4.2.0
+
+  # ML
+  google_mlkit_face_detection: ^0.12.0
+  tflite_flutter: ^0.11.0
+
+  # Audio / device / misc
+  audioplayers: ^6.1.0
+  device_info_plus: ^10.1.2
+  crypto: ^3.0.3
+  intl: ^0.19.0
+  permission_handler: ^11.3.1
+
+  # PDF
+  pdf: ^3.11.1
+  printing: ^5.13.3
 
 dev_dependencies:
   flutter_test:
@@ -24,3 +52,5 @@ flutter:
 
   assets:
     - assets/icons/
+    - assets/models/
+    - assets/sounds/
