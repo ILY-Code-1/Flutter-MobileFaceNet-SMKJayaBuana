@@ -4,7 +4,7 @@ class AppStrings {
   // ---------- App ----------
   static const appName = 'Jaya Buana';
   static const appSubtitle = 'Attendance Studio';
-  static const appVersion = 'v1.0.0';
+  static const appVersion = 'v1.5.0';
   static const schoolFullName = 'JAYA BUANA';
 
   // ---------- Registration (01) ----------

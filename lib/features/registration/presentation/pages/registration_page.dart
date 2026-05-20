@@ -5,11 +5,14 @@ import '../../../../core/data/app_database.dart';
 import '../../../../core/data/seed.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/utils/pin_validator.dart';
 import '../../../../core/widgets/jb_button.dart';
 import '../../../../core/widgets/jb_icons.dart';
+import '../../../../core/widgets/jb_pin_dots.dart';
 import '../../../../core/widgets/jb_text_field.dart';
+import '../../../../core/widgets/shake_widget.dart';
 import '../../../../routing/app_router.dart';
-import '../widgets/password_strength_bar.dart';
+import '../../../camera/presentation/widgets/numeric_keypad.dart';
 
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key});
@@ -18,98 +21,129 @@ class RegistrationPage extends StatefulWidget {
   State<RegistrationPage> createState() => _RegistrationPageState();
 }
 
-enum _Step { account, pin }
+/// Which PIN the keypad is currently feeding.
+enum _PinStage { create, confirm }
 
 class _RegistrationPageState extends State<RegistrationPage> {
-  _Step _step = _Step.account;
-
   final _username = TextEditingController();
-  final _password = TextEditingController();
-  final _confirm = TextEditingController();
-  final _pin = TextEditingController();
-  final _pinConfirm = TextEditingController();
 
-  bool _obscurePassword = true;
-  bool _obscureConfirm = true;
-  bool _obscurePin = true;
+  _PinStage _stage = _PinStage.create;
+  String _pin = '';
+  String _confirmPin = '';
+  PinDotsState _dotsState = PinDotsState.normal;
+  String? _error;
+  int _shakeTrigger = 0;
   bool _busy = false;
-
-  String? _accountError;
-  String? _pinError;
 
   @override
   void initState() {
     super.initState();
-    _password.addListener(_onChange);
-    _confirm.addListener(_onChange);
-    _username.addListener(_onChange);
-    _pin.addListener(_onChange);
-    _pinConfirm.addListener(_onChange);
+    _username.addListener(() => setState(() {}));
   }
-
-  void _onChange() => setState(() {});
 
   @override
   void dispose() {
     _username.dispose();
-    _password.dispose();
-    _confirm.dispose();
-    _pin.dispose();
-    _pinConfirm.dispose();
     super.dispose();
   }
 
-  int _passwordStrength() {
-    final p = _password.text;
-    if (p.isEmpty) return 0;
-    int s = 0;
-    if (p.length >= 6) s++;
-    if (p.length >= 10) s++;
-    if (RegExp(r'[A-Z]').hasMatch(p) && RegExp(r'[a-z]').hasMatch(p)) s++;
-    if (RegExp(r'\d').hasMatch(p) || RegExp(r'[^A-Za-z0-9]').hasMatch(p)) s++;
-    return s.clamp(0, 4);
-  }
+  String get _currentInput =>
+      _stage == _PinStage.create ? _pin : _confirmPin;
 
-  void _goToPin() {
+  void _onDigit(int d) {
+    if (_busy) return;
+    if (_currentInput.length >= PinValidator.length) return;
     setState(() {
-      _accountError = null;
-      if (_username.text.trim().isEmpty) {
-        _accountError = 'Username is required.';
-        return;
+      _error = null;
+      _dotsState = PinDotsState.normal;
+      if (_stage == _PinStage.create) {
+        _pin += '$d';
+        if (_pin.length == PinValidator.length) _evaluateCreate();
+      } else {
+        _confirmPin += '$d';
+        if (_confirmPin.length == PinValidator.length) _evaluateConfirm();
       }
-      if (_password.text.length < 6) {
-        _accountError = 'Password must be at least 6 characters.';
-        return;
-      }
-      if (_password.text != _confirm.text) {
-        _accountError = 'Password and confirmation do not match.';
-        return;
-      }
-      _step = _Step.pin;
     });
   }
 
-  Future<void> _finish() async {
-    setState(() => _pinError = null);
-    if (_pin.text.length < 4 || _pin.text.length > 8) {
-      setState(() => _pinError = 'PIN must be 4–8 digits.');
-      return;
-    }
-    if (!RegExp(r'^\d+$').hasMatch(_pin.text)) {
-      setState(() => _pinError = 'PIN must contain digits only.');
-      return;
-    }
-    if (_pin.text != _pinConfirm.text) {
-      setState(() => _pinError = 'PIN and confirmation do not match.');
-      return;
-    }
+  void _onBackspace() {
+    if (_busy) return;
+    setState(() {
+      _error = null;
+      _dotsState = PinDotsState.normal;
+      if (_stage == _PinStage.create) {
+        if (_pin.isNotEmpty) _pin = _pin.substring(0, _pin.length - 1);
+      } else {
+        if (_confirmPin.isNotEmpty) {
+          _confirmPin = _confirmPin.substring(0, _confirmPin.length - 1);
+        }
+      }
+    });
+  }
 
+  void _evaluateCreate() {
+    final err = PinValidator.validate(_pin);
+    if (err != null) {
+      _flagError(err, clearStage: _PinStage.create);
+      return;
+    }
+    // valid → flash green, advance to confirm stage
+    _dotsState = PinDotsState.success;
+    Future.delayed(const Duration(milliseconds: 420), () {
+      if (!mounted) return;
+      setState(() {
+        _stage = _PinStage.confirm;
+        _dotsState = PinDotsState.normal;
+      });
+    });
+  }
+
+  void _evaluateConfirm() {
+    if (_confirmPin != _pin) {
+      _flagError('PIN confirmation does not match.',
+          clearStage: _PinStage.confirm);
+      return;
+    }
+    _dotsState = PinDotsState.success;
+    Future.delayed(const Duration(milliseconds: 300), _submit);
+  }
+
+  void _flagError(String message, {required _PinStage clearStage}) {
+    setState(() {
+      _error = message;
+      _dotsState = PinDotsState.error;
+      _shakeTrigger++;
+    });
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (!mounted) return;
+      setState(() {
+        if (clearStage == _PinStage.create) {
+          _pin = '';
+        } else {
+          _confirmPin = '';
+        }
+        _dotsState = PinDotsState.normal;
+      });
+    });
+  }
+
+  Future<void> _submit() async {
+    if (!mounted || _busy) return;
+    if (_username.text.trim().isEmpty) {
+      setState(() {
+        _error = 'Please enter a username first.';
+        _stage = _PinStage.create;
+        _pin = '';
+        _confirmPin = '';
+        _dotsState = PinDotsState.normal;
+      });
+      return;
+    }
     setState(() => _busy = true);
     try {
       await AppDatabase.instance.createAdmin(
         username: _username.text.trim(),
-        password: _password.text,
-        pin: _pin.text,
+        pin: _pin,
       );
       await DbSeeder.seedIfEmpty();
       if (!mounted) return;
@@ -118,8 +152,11 @@ class _RegistrationPageState extends State<RegistrationPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _pinError = 'Failed to save: $e';
         _busy = false;
+        _error = 'Failed to save: $e';
+        _stage = _PinStage.create;
+        _pin = '';
+        _confirmPin = '';
       });
     }
   }
@@ -128,13 +165,15 @@ class _RegistrationPageState extends State<RegistrationPage> {
   Widget build(BuildContext context) {
     final c = context.jb;
     final theme = Theme.of(context);
+    final isConfirm = _stage == _PinStage.confirm;
 
     return Scaffold(
       backgroundColor: c.bg,
       body: SafeArea(
         child: Stack(
           children: [
-            _BackgroundOrnaments(color: c.borderStrong.withValues(alpha: 0.35)),
+            _BackgroundOrnaments(
+                color: c.borderStrong.withValues(alpha: 0.35)),
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.x22,
@@ -142,46 +181,164 @@ class _RegistrationPageState extends State<RegistrationPage> {
                 AppSpacing.x22,
                 AppSpacing.x18,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const _BrandRow(),
-                  const SizedBox(height: AppSpacing.x22),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: _step == _Step.account
-                          ? _accountStep(theme, c)
-                          : _pinStep(theme, c),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _BrandRow(),
+                    const SizedBox(height: AppSpacing.x22),
+                    const _StepChip(),
+                    const SizedBox(height: AppSpacing.x14),
+                    RichText(
+                      text: TextSpan(
+                        style: theme.textTheme.headlineLarge
+                            ?.copyWith(color: c.text, fontSize: 27),
+                        children: [
+                          const TextSpan(text: "Let's set up your\n"),
+                          TextSpan(
+                            text: 'admin',
+                            style: theme.textTheme.headlineLarge?.copyWith(
+                              color: c.text,
+                              fontSize: 27,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                          const TextSpan(text: ' account.'),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.x14),
-                  if (_step == _Step.account)
-                    JbButton(
-                      label: AppStrings.next,
-                      leading: const JbIcon(JbIcon.chevronRight, size: 18),
-                      onPressed: _busy ? null : _goToPin,
-                    )
-                  else
-                    JbButton(
-                      label: AppStrings.createAccount,
-                      leading: _busy
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white),
-                            )
-                          : const JbIcon(JbIcon.check, size: 18),
-                      onPressed: _busy ? null : _finish,
+                    const SizedBox(height: AppSpacing.x10),
+                    Text(
+                      'Pick a username and a 6-digit PIN. The PIN unlocks the '
+                      'admin menu from the camera screen.',
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: c.textMute, fontSize: 14),
                     ),
-                  const SizedBox(height: AppSpacing.x14),
-                  Text(
-                    AppStrings.terminalAgreement,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: c.textFaint, fontSize: 12),
-                  ),
-                ],
+                    const SizedBox(height: AppSpacing.x22),
+                    JbTextField(
+                      label: AppStrings.labelUsername,
+                      hintText: AppStrings.hintUsername,
+                      leadingIcon: const JbIcon(JbIcon.user),
+                      controller: _username,
+                    ),
+                    const SizedBox(height: AppSpacing.x22),
+                    Text(
+                      isConfirm ? 'CONFIRM ADMIN PIN' : 'CREATE ADMIN PIN',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: c.textMute,
+                        letterSpacing: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.x6),
+                    Text(
+                      isConfirm
+                          ? 'Re-enter the 6 digits to confirm.'
+                          : 'Choose 6 random digits — not 123456 or 654321.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: c.textFaint,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.x18),
+                    Center(
+                      child: ShakeWidget(
+                        shakeTrigger: _shakeTrigger,
+                        child: JbPinDots(
+                          filled: _currentInput.length,
+                          length: PinValidator.length,
+                          state: _dotsState,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.x12),
+                    SizedBox(
+                      height: 22,
+                      child: Center(
+                        child: _error != null
+                            ? Text(
+                                _error!,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: c.danger,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              )
+                            : (_dotsState == PinDotsState.success
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.check_circle,
+                                          color: c.success, size: 16),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        isConfirm
+                                            ? 'PIN confirmed'
+                                            : 'Looks good',
+                                        style: TextStyle(
+                                          color: c.success,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : const SizedBox.shrink()),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.x14),
+                    NumericKeypad(
+                      onDigit: _onDigit,
+                      onBackspace: _onBackspace,
+                    ),
+                    if (isConfirm) ...[
+                      const SizedBox(height: AppSpacing.x12),
+                      Center(
+                        child: TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => setState(() {
+                                    _stage = _PinStage.create;
+                                    _pin = '';
+                                    _confirmPin = '';
+                                    _error = null;
+                                    _dotsState = PinDotsState.normal;
+                                  }),
+                          child: Text(
+                            '↺ Start the PIN over',
+                            style: TextStyle(
+                              color: c.textMute,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.x14),
+                    if (_busy)
+                      JbButton(
+                        label: 'Creating account…',
+                        leading: const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        ),
+                        onPressed: null,
+                      ),
+                    const SizedBox(height: AppSpacing.x10),
+                    Text(
+                      AppStrings.terminalAgreement,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: c.textFaint, fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -189,145 +346,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
       ),
     );
   }
-
-  Widget _accountStep(ThemeData theme, JbColors c) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _StepChip(label: AppStrings.setupStep1),
-        const SizedBox(height: AppSpacing.x14),
-        _Headline(
-          theme: theme,
-          c: c,
-          before: AppStrings.createAccountHeadline,
-          em: AppStrings.createAccountHeadlineEm,
-          after: AppStrings.createAccountHeadlineTail,
-        ),
-        const SizedBox(height: AppSpacing.x10),
-        Text(
-          AppStrings.createAccountSub,
-          style: theme.textTheme.bodyMedium
-              ?.copyWith(color: c.textMute, fontSize: 14),
-        ),
-        const SizedBox(height: AppSpacing.x28),
-        JbTextField(
-          label: AppStrings.labelUsername,
-          hintText: AppStrings.hintUsername,
-          leadingIcon: const JbIcon(JbIcon.user),
-          controller: _username,
-        ),
-        const SizedBox(height: AppSpacing.x18),
-        JbTextField(
-          label: AppStrings.labelPassword,
-          obscureText: _obscurePassword,
-          leadingIcon: const JbIcon(JbIcon.lock),
-          controller: _password,
-          trailing: GestureDetector(
-            onTap: () =>
-                setState(() => _obscurePassword = !_obscurePassword),
-            child: JbIcon(
-              _obscurePassword ? JbIcon.eye : JbIcon.eyeOff,
-              size: 20,
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.x18),
-        JbTextField(
-          label: AppStrings.labelConfirmPassword,
-          obscureText: _obscureConfirm,
-          leadingIcon: const JbIcon(JbIcon.lock),
-          controller: _confirm,
-          trailing: GestureDetector(
-            onTap: () => setState(() => _obscureConfirm = !_obscureConfirm),
-            child: JbIcon(
-              _obscureConfirm ? JbIcon.eyeOff : JbIcon.eye,
-              size: 20,
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.x14),
-        PasswordStrengthBar(level: _passwordStrength()),
-        if (_accountError != null) ...[
-          const SizedBox(height: AppSpacing.x12),
-          Text(
-            _accountError!,
-            style: TextStyle(
-                color: c.danger, fontSize: 13, fontWeight: FontWeight.w700),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _pinStep(ThemeData theme, JbColors c) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _StepChip(label: AppStrings.setupStep2),
-        const SizedBox(height: AppSpacing.x14),
-        _Headline(
-          theme: theme,
-          c: c,
-          before: AppStrings.pinHeadline,
-          em: AppStrings.pinHeadlineEm,
-          after: AppStrings.pinHeadlineTail,
-        ),
-        const SizedBox(height: AppSpacing.x10),
-        Text(
-          AppStrings.pinSub,
-          style: theme.textTheme.bodyMedium
-              ?.copyWith(color: c.textMute, fontSize: 14),
-        ),
-        const SizedBox(height: AppSpacing.x28),
-        JbTextField(
-          label: AppStrings.labelPin,
-          obscureText: _obscurePin,
-          leadingIcon: const JbIcon(JbIcon.lock),
-          controller: _pin,
-          keyboardType: TextInputType.number,
-          trailing: GestureDetector(
-            onTap: () => setState(() => _obscurePin = !_obscurePin),
-            child: JbIcon(
-              _obscurePin ? JbIcon.eye : JbIcon.eyeOff,
-              size: 20,
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.x18),
-        JbTextField(
-          label: AppStrings.labelConfirmPin,
-          obscureText: _obscurePin,
-          leadingIcon: const JbIcon(JbIcon.lock),
-          controller: _pinConfirm,
-          keyboardType: TextInputType.number,
-        ),
-        if (_pinError != null) ...[
-          const SizedBox(height: AppSpacing.x12),
-          Text(
-            _pinError!,
-            style: TextStyle(
-                color: c.danger, fontSize: 13, fontWeight: FontWeight.w700),
-          ),
-        ],
-        const SizedBox(height: AppSpacing.x18),
-        TextButton(
-          onPressed: _busy ? null : () => setState(() => _step = _Step.account),
-          child: Text(
-            '← back to account',
-            style: TextStyle(
-                color: c.textMute,
-                fontWeight: FontWeight.w700,
-                fontSize: 13),
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 class _StepChip extends StatelessWidget {
-  final String label;
-  const _StepChip({required this.label});
+  const _StepChip();
 
   @override
   Widget build(BuildContext context) {
@@ -345,14 +367,11 @@ class _StepChip extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(
-              color: c.accent,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle),
           ),
           const SizedBox(width: AppSpacing.x8),
           Text(
-            label,
+            'FIRST-TIME SETUP · STEP 1 OF 1',
             style: TextStyle(
               color: c.text,
               fontSize: 11,
@@ -360,40 +379,6 @@ class _StepChip extends StatelessWidget {
               letterSpacing: 1.2,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Headline extends StatelessWidget {
-  final ThemeData theme;
-  final JbColors c;
-  final String before;
-  final String em;
-  final String after;
-  const _Headline(
-      {required this.theme,
-      required this.c,
-      required this.before,
-      required this.em,
-      required this.after});
-
-  @override
-  Widget build(BuildContext context) {
-    return RichText(
-      text: TextSpan(
-        style: theme.textTheme.headlineLarge?.copyWith(color: c.text),
-        children: [
-          TextSpan(text: '$before\n'),
-          TextSpan(
-            text: em,
-            style: theme.textTheme.headlineLarge?.copyWith(
-              color: c.text,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-          TextSpan(text: after),
         ],
       ),
     );

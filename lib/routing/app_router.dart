@@ -11,6 +11,11 @@ import '../features/settings/presentation/pages/settings_page.dart';
 import '../features/students/presentation/pages/add_student_page.dart';
 import '../features/students/presentation/pages/students_page.dart';
 
+/// Global route observer so pages (e.g. the camera) can react to being
+/// covered / uncovered by other routes.
+final RouteObserver<ModalRoute<void>> appRouteObserver =
+    RouteObserver<ModalRoute<void>>();
+
 class AppRoutes {
   AppRoutes._();
 

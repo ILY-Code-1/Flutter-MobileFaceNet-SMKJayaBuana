@@ -13,7 +13,6 @@ import '../../../../core/utils/time_utils.dart';
 import '../../../../core/widgets/jb_avatar.dart';
 import '../../../../core/widgets/jb_icons.dart';
 import '../../../../routing/app_router.dart';
-import '../widgets/face_scan_frame.dart';
 
 /// Arguments: {
 ///   'studentId': int,
@@ -187,14 +186,13 @@ class _RecognizedDialogPageState extends State<RecognizedDialogPage> {
               ),
             ),
           ),
-          const Positioned.fill(
+          Positioned.fill(
             child: IgnorePointer(
               child: Align(
                 alignment: Alignment.topCenter,
                 child: Padding(
-                  padding: EdgeInsets.only(top: 110),
-                  child:
-                      FaceScanFrame(size: 220, color: Color(0xFF5DD49A)),
+                  padding: const EdgeInsets.only(top: 90),
+                  child: _ScannedShot(path: _capturedPath),
                 ),
               ),
             ),
@@ -345,6 +343,39 @@ class _RecognizedDialogPageState extends State<RecognizedDialogPage> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// The still photo captured during the scan, shown framed in the camera area.
+class _ScannedShot extends StatelessWidget {
+  final String? path;
+  const _ScannedShot({required this.path});
+
+  @override
+  Widget build(BuildContext context) {
+    const accent = Color(0xFF5DD49A);
+    final hasImage = path != null && File(path!).existsSync();
+    return Container(
+      width: 190,
+      height: 240,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: accent, width: 2.5),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.35),
+            blurRadius: 24,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(19),
+        child: hasImage
+            ? Image.file(File(path!), fit: BoxFit.cover)
+            : Container(color: const Color(0xFF11203D)),
       ),
     );
   }

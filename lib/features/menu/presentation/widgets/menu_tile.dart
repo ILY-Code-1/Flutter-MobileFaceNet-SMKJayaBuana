@@ -42,6 +42,8 @@ class MenuTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.xl),
+        splashColor: c.primary.withValues(alpha: 0.16),
+        highlightColor: c.primary.withValues(alpha: 0.08),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.xl),

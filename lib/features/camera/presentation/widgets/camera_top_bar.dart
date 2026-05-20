@@ -8,8 +8,9 @@ import '../../../../core/widgets/jb_icons.dart';
 
 class CameraTopBar extends StatefulWidget {
   final VoidCallback? onMenuTap;
+  final VoidCallback? onRefreshTap;
 
-  const CameraTopBar({super.key, this.onMenuTap});
+  const CameraTopBar({super.key, this.onMenuTap, this.onRefreshTap});
 
   @override
   State<CameraTopBar> createState() => _CameraTopBarState();
@@ -80,36 +81,49 @@ class _CameraTopBarState extends State<CameraTopBar> {
               ],
             ),
           ),
-          _MenuButton(onTap: widget.onMenuTap),
+          if (widget.onRefreshTap != null) ...[
+            _RoundIconButton(
+              icon: Icons.refresh,
+              onTap: widget.onRefreshTap,
+            ),
+            const SizedBox(width: AppSpacing.x8),
+          ],
+          _RoundIconButton(
+            onTap: widget.onMenuTap,
+            child: const JbIcon(JbIcon.menu, size: 20, color: Colors.white),
+          ),
         ],
       ),
     );
   }
 }
 
-class _MenuButton extends StatelessWidget {
+class _RoundIconButton extends StatelessWidget {
+  final IconData? icon;
+  final Widget? child;
   final VoidCallback? onTap;
-  const _MenuButton({this.onTap});
+  const _RoundIconButton({this.icon, this.child, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withValues(alpha: 0.08),
+      color: Colors.white.withValues(alpha: 0.10),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(
-          color: Colors.white.withValues(alpha: 0.12),
+          color: Colors.white.withValues(alpha: 0.16),
           width: 1,
         ),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
-        child: const SizedBox(
+        child: SizedBox(
           width: 42,
           height: 42,
           child: Center(
-            child: JbIcon(JbIcon.menu, size: 20, color: Colors.white),
+            child: child ??
+                Icon(icon, size: 20, color: Colors.white),
           ),
         ),
       ),

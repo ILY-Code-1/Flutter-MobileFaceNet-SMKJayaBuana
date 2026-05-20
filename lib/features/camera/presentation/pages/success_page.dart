@@ -8,7 +8,6 @@ import '../../../../core/data/app_database.dart';
 import '../../../../core/data/models.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/jb_avatar.dart';
-import '../../../../routing/app_router.dart';
 
 /// Arguments: {
 ///   'studentId': int,
@@ -67,8 +66,8 @@ class _SuccessPageState extends State<SuccessPage> {
       setState(() => _remaining -= 1);
       if (_remaining <= 0) {
         _ticker?.cancel();
-        Navigator.pushNamedAndRemoveUntil(
-            context, AppRoutes.camera, (r) => false);
+        // Pop back to the live camera page instead of recreating it.
+        Navigator.popUntil(context, (r) => r.isFirst);
       }
     });
   }

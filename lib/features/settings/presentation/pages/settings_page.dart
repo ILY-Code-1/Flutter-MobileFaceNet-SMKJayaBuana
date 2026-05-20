@@ -23,7 +23,6 @@ class _SettingsPageState extends State<SettingsPage> {
   Map<int, int> _studentCountByClass = {};
   AppSettings? _settings;
   bool _loading = true;
-  String? _detectedDeviceName;
 
   @override
   void initState() {
@@ -46,7 +45,6 @@ class _SettingsPageState extends State<SettingsPage> {
       _classes = classes;
       _studentCountByClass = counts;
       _settings = effective;
-      _detectedDeviceName = detected;
       _loading = false;
     });
   }
@@ -340,12 +338,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     if (v == null) return;
                     _saveSettings(_settings!.copyWith(soundOnScan: v));
                   },
-                ),
-                Divider(color: c.border, height: 1),
-                _KeyValueRow(
-                  k: 'Detected device',
-                  v: _detectedDeviceName ?? '—',
-                  showChevron: false,
                 ),
               ],
             ),
@@ -688,12 +680,10 @@ class _KeyValueRow extends StatelessWidget {
   final String k;
   final String v;
   final VoidCallback? onTap;
-  final bool showChevron;
   const _KeyValueRow({
     required this.k,
     required this.v,
     this.onTap,
-    this.showChevron = true,
   });
   @override
   Widget build(BuildContext context) {
@@ -724,10 +714,8 @@ class _KeyValueRow extends StatelessWidget {
                     fontSize: 14),
               ),
             ),
-            if (showChevron) ...[
-              const SizedBox(width: AppSpacing.x6),
-              JbIcon(JbIcon.chevronRight, size: 14, color: c.textMute),
-            ],
+            const SizedBox(width: AppSpacing.x6),
+            JbIcon(JbIcon.chevronRight, size: 14, color: c.textMute),
           ],
         ),
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/data/app_database.dart';
@@ -128,11 +129,8 @@ class _MenuPageState extends State<MenuPage> {
                       ),
                     ),
                     _CloseButton(
-                      onTap: () => Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        AppRoutes.camera,
-                        (r) => false,
-                      ),
+                      // Pop back to the live camera instead of recreating it.
+                      onTap: () => Navigator.pop(context),
                     ),
                   ],
                 ),
@@ -149,7 +147,6 @@ class _MenuPageState extends State<MenuPage> {
                             MenuTile(
                               iconAsset: JbIcon.student,
                               title: AppStrings.tileStudents,
-                              variant: MenuTileVariant.primary,
                               trailingMeta: TextSpan(
                                 children: [
                                   TextSpan(
@@ -222,7 +219,7 @@ class _MenuPageState extends State<MenuPage> {
                         ),
                 ),
                 const SizedBox(height: AppSpacing.x10),
-                const _Footer(),
+                const _ContactDeveloperFooter(),
               ],
             ),
           ),
@@ -255,42 +252,64 @@ class _CloseButton extends StatelessWidget {
   }
 }
 
-class _Footer extends StatelessWidget {
-  const _Footer();
+class _ContactDeveloperFooter extends StatelessWidget {
+  const _ContactDeveloperFooter();
+
+  static const _waNumber = '6281398447822';
+  static const _waMessage =
+      'halo developer, saya mengalami masalah dengan aplikasi absensi smk jaya buana';
+
+  Future<void> _openWhatsApp(BuildContext context) async {
+    final uri = Uri.parse(
+        'https://wa.me/$_waNumber?text=${Uri.encodeComponent(_waMessage)}');
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open WhatsApp.')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final c = context.jb;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          vertical: AppSpacing.x14, horizontal: AppSpacing.x18),
-      decoration: BoxDecoration(
-        color: c.bgElev,
+    return Material(
+      color: c.bgElev,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: c.border, width: 1.2),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          JbIcon(JbIcon.chevronLeft, size: 18, color: c.textMute),
-          const SizedBox(width: AppSpacing.x8),
-          Text(
-            AppStrings.backToCamera,
-            style: TextStyle(
-              color: c.textMute,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
+        onTap: () => _openWhatsApp(context),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+              vertical: AppSpacing.x14, horizontal: AppSpacing.x18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: c.border, width: 1.2),
           ),
-          Text(
-            ' · ${AppStrings.appVersion}',
-            style: TextStyle(
-              color: c.textFaint,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.support_agent, size: 18, color: c.accent),
+              const SizedBox(width: AppSpacing.x8),
+              Text(
+                'Contact developer',
+                style: TextStyle(
+                  color: c.text,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Text(
+                ' · ${AppStrings.appVersion}',
+                style: TextStyle(
+                  color: c.textFaint,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

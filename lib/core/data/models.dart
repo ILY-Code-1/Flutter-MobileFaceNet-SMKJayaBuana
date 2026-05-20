@@ -4,14 +4,12 @@ import 'dart:typed_data';
 class AdminAccount {
   final int id;
   final String username;
-  final String passwordHash;
   final String pinHash;
   final DateTime createdAt;
 
   const AdminAccount({
     required this.id,
     required this.username,
-    required this.passwordHash,
     required this.pinHash,
     required this.createdAt,
   });
@@ -19,7 +17,6 @@ class AdminAccount {
   factory AdminAccount.fromRow(Map<String, Object?> row) => AdminAccount(
         id: row['id'] as int,
         username: row['username'] as String,
-        passwordHash: row['password_hash'] as String,
         pinHash: row['pin_hash'] as String,
         createdAt: DateTime.parse(row['created_at'] as String),
       );

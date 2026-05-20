@@ -36,6 +36,7 @@ class JayaBuanaApp extends StatelessWidget {
       themeMode: ThemeMode.light,
       initialRoute: initialRoute,
       onGenerateRoute: AppRouter.onGenerate,
+      navigatorObservers: [appRouteObserver],
     );
   }
 }

@@ -306,9 +306,13 @@ class _ReportsPageState extends State<ReportsPage> {
       ),
       body: _loading
           ? Center(child: CircularProgressIndicator(color: c.accent))
-          : ListView(
+          : Column(
+              children: [
+                Expanded(
+                  child: ListView(
               padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.x18, 0, AppSpacing.x18, 100),
+                  AppSpacing.x18, AppSpacing.x10, AppSpacing.x18,
+                  AppSpacing.x18),
               children: [
                 Row(
                   children: [
@@ -464,76 +468,86 @@ class _ReportsPageState extends State<ReportsPage> {
                     ],
                   ),
                 ),
-              ],
-            ),
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          margin: const EdgeInsets.all(AppSpacing.x18),
-          padding: const EdgeInsets.all(AppSpacing.x14),
-          decoration: BoxDecoration(
-            color: c.primary,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(AppStrings.exportLabel,
-                        style: TextStyle(
-                            color: c.onPrimary.withValues(alpha: 0.7),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.4)),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${_filterScopeLabel()} · ${(_summary?.rows.length ?? 0)} students',
-                      style: TextStyle(
-                          color: c.onPrimary,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 14),
-                    ),
                   ],
+                  ),
                 ),
-              ),
-              Material(
-                color: c.accent,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  onTap: _exporting ? null : _exportPdf,
+                SafeArea(
+                  top: false,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.x14,
-                        vertical: AppSpacing.x10),
-                    child: Row(
-                      children: [
-                        if (_exporting)
-                          const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Color(0xFF0B1A35)),
-                          )
-                        else
-                          JbIcon(JbIcon.download,
-                              size: 16, color: c.onAccent),
-                        const SizedBox(width: AppSpacing.x8),
-                        Text(AppStrings.exportPdf,
-                            style: TextStyle(
-                                color: c.onAccent,
-                                fontWeight: FontWeight.w900)),
-                      ],
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.x18, 0,
+                        AppSpacing.x18, AppSpacing.x14),
+                    child: Container(
+                      padding: const EdgeInsets.all(AppSpacing.x14),
+                      decoration: BoxDecoration(
+                        color: c.primary,
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(AppStrings.exportLabel,
+                                    style: TextStyle(
+                                        color: c.onPrimary
+                                            .withValues(alpha: 0.7),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 1.4)),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${_filterScopeLabel()} · ${_summary?.rows.length ?? 0} students',
+                                  style: TextStyle(
+                                      color: c.onPrimary,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 14),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Material(
+                            color: c.accent,
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.md),
+                            child: InkWell(
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.md),
+                              onTap: _exporting ? null : _exportPdf,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.x14,
+                                    vertical: AppSpacing.x10),
+                                child: Row(
+                                  children: [
+                                    if (_exporting)
+                                      const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Color(0xFF0B1A35)),
+                                      )
+                                    else
+                                      JbIcon(JbIcon.download,
+                                          size: 16, color: c.onAccent),
+                                    const SizedBox(width: AppSpacing.x8),
+                                    Text(AppStrings.exportPdf,
+                                        style: TextStyle(
+                                            color: c.onAccent,
+                                            fontWeight: FontWeight.w900)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
+              ],
+            ),
     );
   }
 

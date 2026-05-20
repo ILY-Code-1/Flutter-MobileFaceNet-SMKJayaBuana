@@ -10,12 +10,15 @@ import 'models.dart';
 
 /// Single source-of-truth wrapper around the SQLite database.
 ///
-/// Tables:
-///   admin        — at most 1 row, stores hashed password + PIN
-///   classes      — list of school classes (name unique)
-///   students     — enrolled students with face embedding (BLOB)
-///   attendance   — per-student per-day check-in / check-out record
-///   settings     — generic key/value bag for active classes, school hours…
+/// Schema (v2):
+///   admin       — at most 1 row, stores the hashed admin PIN
+///   classes     — list of school classes (name unique)
+///   students    — enrolled students with face embedding (BLOB)
+///   attendance  — per-student per-day check-in / check-out record
+///   settings    — generic key/value bag for active classes, school hours…
+///
+/// v2 dropped the unused `password_hash` column from `admin` and added
+/// indexes on the hot foreign-key / date columns.
 class AppDatabase {
   AppDatabase._();
   static final AppDatabase instance = AppDatabase._();
@@ -24,7 +27,7 @@ class AppDatabase {
   Future<Database> get db async => _db ??= await _open();
 
   static const _kDbName = 'smk_jaya_buana.db';
-  static const _kDbVersion = 1;
+  static const _kDbVersion = 2;
 
   Future<Database> _open() async {
     final dir = await getApplicationDocumentsDirectory();
@@ -32,59 +35,78 @@ class AppDatabase {
     return openDatabase(
       path,
       version: _kDbVersion,
-      onCreate: _onCreate,
+      onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
+      onCreate: (db, _) async => _createSchema(db),
+      onUpgrade: (db, _, _) async {
+        // Dev-stage migration: rebuild from scratch. The admin must
+        // re-register (no password anymore) and the seeder repopulates.
+        await _dropSchema(db);
+        await _createSchema(db);
+      },
     );
   }
 
-  Future<void> _onCreate(Database db, int version) async {
+  Future<void> _dropSchema(Database db) async {
+    final batch = db.batch();
+    for (final t in ['attendance', 'students', 'classes', 'settings', 'admin']) {
+      batch.execute('DROP TABLE IF EXISTS $t');
+    }
+    await batch.commit(noResult: true);
+  }
+
+  Future<void> _createSchema(Database db) async {
     final batch = db.batch();
     batch.execute('''
       CREATE TABLE admin (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL,
-        password_hash TEXT NOT NULL,
-        pin_hash TEXT NOT NULL,
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        username   TEXT NOT NULL,
+        pin_hash   TEXT NOT NULL,
         created_at TEXT NOT NULL
       );
     ''');
     batch.execute('''
       CREATE TABLE classes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL UNIQUE,
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT NOT NULL UNIQUE,
         created_at TEXT NOT NULL
       );
     ''');
     batch.execute('''
       CREATE TABLE students (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        nis TEXT NOT NULL UNIQUE,
-        class_id INTEGER NOT NULL,
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT NOT NULL,
+        nis        TEXT NOT NULL UNIQUE,
+        class_id   INTEGER NOT NULL,
         photo_path TEXT,
-        embedding BLOB,
-        is_draft INTEGER NOT NULL DEFAULT 0,
+        embedding  BLOB,
+        is_draft   INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL,
         FOREIGN KEY (class_id) REFERENCES classes(id)
       );
     ''');
     batch.execute('''
       CREATE TABLE attendance (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id INTEGER NOT NULL,
-        date TEXT NOT NULL,
-        check_in_time TEXT,
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id     INTEGER NOT NULL,
+        date           TEXT NOT NULL,
+        check_in_time  TEXT,
         check_out_time TEXT,
-        status TEXT NOT NULL,
-        UNIQUE(student_id, date),
+        status         TEXT NOT NULL,
+        UNIQUE (student_id, date),
         FOREIGN KEY (student_id) REFERENCES students(id)
       );
     ''');
     batch.execute('''
       CREATE TABLE settings (
-        key TEXT PRIMARY KEY,
+        key   TEXT PRIMARY KEY,
         value TEXT NOT NULL
       );
     ''');
+    // Indexes for the hot lookups (class filter, daily attendance, reports).
+    batch.execute('CREATE INDEX idx_students_class ON students(class_id);');
+    batch.execute(
+        'CREATE INDEX idx_attendance_student ON attendance(student_id);');
+    batch.execute('CREATE INDEX idx_attendance_date ON attendance(date);');
     await batch.commit(noResult: true);
   }
 
@@ -111,16 +133,15 @@ class AppDatabase {
     return AdminAccount.fromRow(rows.first);
   }
 
+  /// Creates (or replaces) the single admin account. Only the PIN is stored.
   Future<void> createAdmin({
     required String username,
-    required String password,
     required String pin,
   }) async {
     final d = await db;
     await d.delete('admin');
     await d.insert('admin', {
       'username': username,
-      'password_hash': hashSecret(password),
       'pin_hash': hashSecret(pin),
       'created_at': DateTime.now().toIso8601String(),
     });
@@ -189,7 +210,8 @@ class AppDatabase {
     }
     if (inClassIds != null) {
       if (inClassIds.isEmpty) return const [];
-      where.add('s.class_id IN (${List.filled(inClassIds.length, '?').join(',')})');
+      where.add(
+          's.class_id IN (${List.filled(inClassIds.length, '?').join(',')})');
       args.addAll(inClassIds);
     }
     if (query != null && query.trim().isNotEmpty) {
@@ -273,7 +295,8 @@ class AppDatabase {
 
   // ---------------- Attendance ----------------
 
-  Future<AttendanceRecord?> getTodayAttendance(int studentId, DateTime day) async {
+  Future<AttendanceRecord?> getTodayAttendance(
+      int studentId, DateTime day) async {
     final d = await db;
     final iso = _ymd(day);
     final rows = await d.query('attendance',
@@ -406,6 +429,4 @@ class AppDatabase {
       await tx.delete('admin');
     });
   }
-
-  String debugDumpSettings(Map<String, String> values) => jsonEncode(values);
 }

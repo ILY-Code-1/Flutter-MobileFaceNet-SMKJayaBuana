@@ -72,37 +72,33 @@ class DbSeeder {
       studentIds[s['nis'] as String] = id;
     }
 
-    // ----- attendance: last 5 weekdays for the first 7 students -----
+    // ----- attendance -----
+    // Generate completed attendance for every weekday of the CURRENT month
+    // up to today, so the Reports screen (which defaults to the current
+    // month) always has data to show.
     final today = DateTime.now();
-    int dayOffset = 1;
-    int filled = 0;
-    while (filled < 5 && dayOffset < 12) {
-      final day = today.subtract(Duration(days: dayOffset));
-      if (day.weekday >= DateTime.saturday) {
-        dayOffset++;
-        continue;
-      }
-      int idx = 0;
-      for (final s in dummyStudents.take(7)) {
+    final firstStudents = dummyStudents.take(8).toList();
+    for (int d = 1; d <= today.day; d++) {
+      final day = DateTime(today.year, today.month, d);
+      if (day.weekday >= DateTime.saturday) continue; // skip weekends
+      for (int i = 0; i < firstStudents.length; i++) {
+        final s = firstStudents[i];
         final sid = studentIds[s['nis'] as String]!;
-        idx++;
-        if (idx == 4 && filled == 0) continue; // someone absent
-        final lateMin = idx == 6 ? 42 : 0;
+        // Vary the data: student #4 is absent on odd days, student #6 is late.
+        final absent = (i == 3) && (d.isOdd);
+        if (absent) continue;
+        final late = (i == 5) || ((i == 2) && d % 5 == 0);
+        final lateMin = late ? 42 : (i * 2) % 10;
         final checkIn = DateTime(day.year, day.month, day.day, 7, lateMin);
         final checkOut = DateTime(day.year, day.month, day.day, 15, 35);
         await db.upsertCheckIn(
           studentId: sid,
           now: checkIn,
-          status: lateMin >= 60
-              ? AttendanceStatus.late
-              : (lateMin > 0
-                  ? AttendanceStatus.late
-                  : AttendanceStatus.present),
+          status:
+              late ? AttendanceStatus.late : AttendanceStatus.present,
         );
         await db.updateCheckOut(studentId: sid, now: checkOut);
       }
-      filled++;
-      dayOffset++;
     }
 
     // ----- settings: enable all classes by default -----

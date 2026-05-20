@@ -4,8 +4,10 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/data/app_database.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/jb_button.dart';
+import '../../../../core/utils/pin_validator.dart';
 import '../../../../core/widgets/jb_icons.dart';
+import '../../../../core/widgets/jb_pin_dots.dart';
+import '../../../../core/widgets/shake_widget.dart';
 import '../../../../routing/app_router.dart';
 import '../widgets/numeric_keypad.dart';
 
@@ -20,7 +22,6 @@ Future<void> showPasswordGateSheet(BuildContext context) {
 }
 
 class PasswordGateSheet extends StatefulWidget {
-  static const int maxPinLength = 8;
   const PasswordGateSheet({super.key});
 
   @override
@@ -29,40 +30,54 @@ class PasswordGateSheet extends StatefulWidget {
 
 class _PasswordGateSheetState extends State<PasswordGateSheet> {
   String _pin = '';
-  String? _error;
+  PinDotsState _dotsState = PinDotsState.normal;
+  bool _error = false;
+  int _shakeTrigger = 0;
   bool _busy = false;
 
   void _onDigit(int d) {
-    if (_pin.length >= PasswordGateSheet.maxPinLength) return;
+    if (_busy || _pin.length >= PinValidator.length) return;
     setState(() {
+      _error = false;
+      _dotsState = PinDotsState.normal;
       _pin += '$d';
-      _error = null;
     });
+    if (_pin.length == PinValidator.length) _verify();
   }
 
   void _onBackspace() {
-    if (_pin.isEmpty) return;
+    if (_busy || _pin.isEmpty) return;
     setState(() {
+      _error = false;
+      _dotsState = PinDotsState.normal;
       _pin = _pin.substring(0, _pin.length - 1);
-      _error = null;
     });
   }
 
-  Future<void> _unlock() async {
-    if (_pin.isEmpty) return;
+  Future<void> _verify() async {
     setState(() => _busy = true);
     final ok = await AppDatabase.instance.verifyPin(_pin);
     if (!mounted) return;
-    if (!ok) {
+    if (ok) {
+      setState(() => _dotsState = PinDotsState.success);
+      await Future.delayed(const Duration(milliseconds: 280));
+      if (!mounted) return;
+      Navigator.pop(context);
+      Navigator.pushNamed(context, AppRoutes.menu);
+    } else {
       setState(() {
-        _error = AppStrings.wrongPin;
+        _error = true;
+        _dotsState = PinDotsState.error;
+        _shakeTrigger++;
+      });
+      await Future.delayed(const Duration(milliseconds: 600));
+      if (!mounted) return;
+      setState(() {
         _pin = '';
+        _dotsState = PinDotsState.normal;
         _busy = false;
       });
-      return;
     }
-    Navigator.pop(context);
-    Navigator.pushNamed(context, AppRoutes.menu);
   }
 
   @override
@@ -82,11 +97,12 @@ class _PasswordGateSheetState extends State<PasswordGateSheet> {
           AppSpacing.x22,
           AppSpacing.x10,
           AppSpacing.x22,
-          AppSpacing.x18,
+          AppSpacing.x22,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Drag handle — the sheet is dismissed by swiping it down.
             Container(
               width: 48,
               height: 5,
@@ -110,7 +126,7 @@ class _PasswordGateSheetState extends State<PasswordGateSheet> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x14),
               child: Text(
-                AppStrings.adminAccessSub,
+                'Enter your 6-digit PIN. Swipe down to cancel.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: c.textMute,
@@ -121,48 +137,49 @@ class _PasswordGateSheetState extends State<PasswordGateSheet> {
               ),
             ),
             const SizedBox(height: AppSpacing.x22),
-            _DotsRow(filled: _pin.length, max: PasswordGateSheet.maxPinLength),
-            const SizedBox(height: AppSpacing.x14),
-            if (_error != null)
-              Text(
-                _error!,
-                style: TextStyle(
-                  color: c.danger,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13,
-                ),
+            ShakeWidget(
+              shakeTrigger: _shakeTrigger,
+              child: JbPinDots(
+                filled: _pin.length,
+                length: PinValidator.length,
+                state: _dotsState,
               ),
+            ),
+            const SizedBox(height: AppSpacing.x12),
+            SizedBox(
+              height: 20,
+              child: Center(
+                child: _error
+                    ? Text(
+                        AppStrings.wrongPin,
+                        style: TextStyle(
+                          color: c.danger,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                        ),
+                      )
+                    : (_dotsState == PinDotsState.success
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.check_circle,
+                                  color: c.success, size: 16),
+                              const SizedBox(width: 6),
+                              Text('Unlocked',
+                                  style: TextStyle(
+                                    color: c.success,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                  )),
+                            ],
+                          )
+                        : const SizedBox.shrink()),
+              ),
+            ),
             const SizedBox(height: AppSpacing.x14),
             NumericKeypad(
               onDigit: _onDigit,
               onBackspace: _onBackspace,
-            ),
-            const SizedBox(height: AppSpacing.x18),
-            Row(
-              children: [
-                Expanded(
-                  child: JbButton.ghost(
-                    label: AppStrings.cancel,
-                    onPressed: _busy ? null : () => Navigator.pop(context),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.x12),
-                Expanded(
-                  flex: 2,
-                  child: JbButton(
-                    label: AppStrings.unlock,
-                    leading: _busy
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
-                          )
-                        : const JbIcon(JbIcon.check, size: 18),
-                    onPressed: _busy || _pin.isEmpty ? null : _unlock,
-                  ),
-                ),
-              ],
             ),
           ],
         ),
@@ -202,48 +219,6 @@ class _LockBadge extends StatelessWidget {
             ),
           ),
         ),
-      ],
-    );
-  }
-}
-
-class _DotsRow extends StatelessWidget {
-  final int filled;
-  final int max;
-  const _DotsRow({required this.filled, required this.max});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.jb;
-    final shown = filled.clamp(0, max);
-    final empties = (6 - shown).clamp(0, 6);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        for (int i = 0; i < shown; i++)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x6),
-            child: Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                color: c.primary,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-        for (int i = 0; i < empties; i++)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x6),
-            child: Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: c.border, width: 1.6),
-              ),
-            ),
-          ),
       ],
     );
   }
