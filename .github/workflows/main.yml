@@ -94,9 +94,9 @@ jobs:
       - name: Update CocoaPods
         run: sudo gem install cocoapods
 
-      - name: Ensure iOS platform 15.5 in Podfile
+      - name: Ensure iOS platform 16.0 in Podfile
         run: |
-          sed -i '' "s/^#* *platform :ios.*/platform :ios, '15.5'/" ios/Podfile
+          sed -i '' "s/^#* *platform :ios.*/platform :ios, '16.0'/" ios/Podfile
           echo "----- ios/Podfile (head) -----"
           head -5 ios/Podfile
 
