@@ -2,7 +2,7 @@ name: flutter_absensi_smk_jaya_buana
 description: "Face-recognition student attendance app for SMK Jaya Buana."
 publish_to: 'none'
 
-version: 1.5.0
+version: 1.7.0
 
 environment:
   sdk: ^3.10.8

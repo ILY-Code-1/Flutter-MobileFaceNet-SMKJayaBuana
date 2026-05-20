@@ -8,74 +8,144 @@ on:
 permissions:
   contents: write
 
-jobs:  
-  build:      
-    name: Build & Release 
-    runs-on: macos-latest 
+jobs:
+  # ============================================================
+  # JOB 1 — Build Android (APK + AAB)
+  # ============================================================
+  build_android:
+    name: Build Android
+    runs-on: ubuntu-latest
 
     steps:
-        #1 Checkout Repository
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-        #2 Setup Java
       - name: Set Up Java
         uses: actions/setup-java@v3.12.0
         with:
           distribution: 'oracle'
           java-version: '17'
 
-        #3 Setup Flutter
       - name: Set Up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.41.6'
           channel: 'stable'
 
-        #4 Install Dependencies
       - name: Install Dependencies
         run: flutter pub get
 
-        #5 Setup Keystore
       - name: Decode Keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
-          
+
       - name: Create key.properties
         run: |
           echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" > android/key.properties
           echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/key.properties
           echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/key.properties
           echo "storeFile=keystore.jks" >> android/key.properties
-        
-        #6 Building APK
+
       - name: Build APK
         run: flutter build apk --release
 
-        #7 Building App Bundle (aab)
       - name: Build appBundle
         run: flutter build appbundle
 
-        #8 Build IPA ( IOS Build )
-      # - name: Build IPA
-      #   run: flutter build ipa --no-codesign
+      - name: Stage Android Artifacts
+        run: |
+          mkdir -p staging
+          cp build/app/outputs/flutter-apk/app-release.apk staging/
+          cp build/app/outputs/bundle/release/app-release.aab staging/
 
-      # - name: Compress Archives and IPAs
-      #   run: |
-      #     cd build
-      #     tar -czf ios_build.tar.gz ios
-
-        #9 Upload Artifacts
-      - name: Upload Artifacts
+      - name: Upload Android Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Releases
-          path: |
-            build/app/outputs/flutter-apk/app-release.apk
-            build/app/outputs/bundle/release/app-release.aab
-          # build/ios_build.tar.gz
+          name: android-release
+          path: staging/
+          if-no-files-found: error
 
-        #10 Extract Version
+  # ============================================================
+  # JOB 2 — Build iOS (IPA, no codesign)
+  # ============================================================
+  build_ios:
+    name: Build iOS
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set Up Java
+        uses: actions/setup-java@v3.12.0
+        with:
+          distribution: 'oracle'
+          java-version: '17'
+
+      - name: Set Up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.6'
+          channel: 'stable'
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Update CocoaPods
+        run: sudo gem install cocoapods
+
+      - name: Ensure iOS platform 15.5 in Podfile
+        run: |
+          sed -i '' "s/^#* *platform :ios.*/platform :ios, '15.5'/" ios/Podfile
+          echo "----- ios/Podfile (head) -----"
+          head -5 ios/Podfile
+
+      - name: Pod Install
+        working-directory: ios
+        timeout-minutes: 30
+        run: pod install --repo-update
+
+      - name: Build IPA (no codesign)
+        timeout-minutes: 45
+        run: flutter build ipa --no-codesign
+
+      - name: Compress iOS Build
+        run: |
+          cd build
+          tar -czf ios_build.tar.gz ios
+
+      - name: Upload iOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-release
+          path: build/ios_build.tar.gz
+          if-no-files-found: error
+
+  # ============================================================
+  # JOB 3 — Release (gabungkan semua artifact)
+  # ============================================================
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build_android, build_ios]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Fetch all tags
+        run: git fetch --tags --force
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List Downloaded Artifacts
+        run: ls -R artifacts
+
       - name: Extract version from pubspec.yaml
         id: extract_version
         run: |
@@ -83,7 +153,6 @@ jobs:
           version="${version}-release"
           echo "VERSION=${version}" | tee -a $GITHUB_ENV
 
-        #11 Check if Tag Exists
       - name: Check if Tag Exists
         id: check_tag
         run: |
@@ -93,19 +162,16 @@ jobs:
             echo "TAG_EXISTS=false" >> $GITHUB_ENV
           fi
 
-        #12 Modify Tag if it Exists
       - name: Modify Tag
         if: env.TAG_EXISTS == 'true'
         id: modify_tag
         run: |
           new_version="${{ env.VERSION }}-build-${{ github.run_number }}"
           echo "VERSION=$new_version" >> $GITHUB_ENV
-        
-        #13 Create Release
+
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "build/app/outputs/flutter-apk/app-release.apk,build/app/outputs/bundle/release/app-release.aab"
-          # artifacts: "build/app/outputs/flutter-apk/app-release.apk,build/app/outputs/bundle/release/app-release.aab,build/ios_build.tar.gz"
+          artifacts: "artifacts/android-release/app-release.apk,artifacts/android-release/app-release.aab,artifacts/ios-release/ios_build.tar.gz"
           tag: v${{ env.VERSION }}
           token: ${{ secrets.GITHUB_TOKEN }}
