@@ -41,8 +41,9 @@ All data lives in the application documents directory of the device.
   a cropped face into a 192-dimension embedding vector
 - **audioplayers** — short feedback sound after a scan
 - **device_info_plus** — auto-detected device name used as the settings default
-- **pdf + printing** — generate and share the attendance PDF report
-- **url_launcher** — open the "Contact developer" WhatsApp link
+- **pdf + printing** — generate and share the multi-page attendance PDF report
+- **share_plus** — share the `.sql` database backup to the developer's WhatsApp
+- **url_launcher** — fallback "Contact developer" WhatsApp chat link
 - **intl** — month/day formatting
 - **crypto** — sha256 hash of the admin PIN
 
@@ -63,7 +64,8 @@ lib/
 │   ├── services/
 │   │   ├── face_recognition_service.dart      # ML Kit + MobileFaceNet pipeline
 │   │   ├── sound_service.dart                 # plays scan-feedback sounds
-│   │   └── device_info_service.dart           # auto-detect device name
+│   │   ├── device_info_service.dart           # auto-detect device name
+│   │   └── database_backup_service.dart       # writes the .sql backup file
 │   ├── utils/
 │   │   ├── time_utils.dart                    # status rules from clock-in/out
 │   │   └── pin_validator.dart                 # 6-digit PIN rules
@@ -113,7 +115,10 @@ Permissions for `CAMERA`, `READ_MEDIA_IMAGES`, `READ_EXTERNAL_STORAGE`,
 [`android/app/src/main/AndroidManifest.xml`](android/app/src/main/AndroidManifest.xml).
 
 The launcher icon is generated from `assets/images/logo.png` via
-`flutter_launcher_icons` (`dart run flutter_launcher_icons`).
+`flutter_launcher_icons` (`dart run flutter_launcher_icons`). The adaptive
+icon uses `adaptive_icon_foreground_inset: 25` so the full Jaya Buana crest —
+including the "JAYA BUANA" wordmark — stays inside the safe zone and is never
+clipped by the launcher mask (circle / squircle / rounded square).
 
 ## First-time launch flow
 
@@ -162,9 +167,16 @@ screen is the home screen; the PIN gate is the only way into admin areas.
 
 Three equally-styled tiles: **Students · Reports · Settings** (tapping a tile
 shows a blue ripple). Today's date and the admin username are at the top.
-The footer is **"Contact developer"** — tapping it opens WhatsApp
-(`wa.me/6281398447822`) pre-filled with a help message. The close button
-returns to the live camera.
+The footer holds two side-by-side buttons with the app version centered
+beneath them:
+
+- **Contact developer** (left) — opens the developer's WhatsApp chat
+  (**+62 851-7822-6071**) pre-filled with a help message.
+- **Backup Database** (right) — writes a fresh `.sql` backup of the whole
+  database, then opens the system share sheet so the admin can send that file
+  to the developer; the button shows a spinner while the backup is prepared.
+
+The close button returns to the live camera.
 
 ### Students
 
@@ -193,7 +205,10 @@ returns to the live camera.
 - Per-student table with P / L / A and attendance %.
 - Tapping a row opens a day-by-day detail dialog for that student.
 - The blue **EXPORT** footer sits below the scrollable table (not covering it)
-  and the **PDF** button generates a styled report matching the active filter.
+  and the **PDF** button generates a styled, multi-page report matching the
+  active filter: a **summary page** (recap + per-student table) followed by
+  **one fresh page per student** listing every day's date, check-in time,
+  check-out time and status.
 - Only **completed** rows (with a `check_out_time`) are aggregated.
 
 ### Settings
@@ -262,6 +277,13 @@ The `settings` table keeps small values as strings, e.g.
 The database is at version **2**. v2 dropped the unused `password_hash`
 column and added the three indexes. Upgrading an existing install rebuilds the
 schema from scratch (the admin re-registers — no password anymore).
+
+A full `.sql` dump of the **live** database (schema + every row, with `BLOB`
+embeddings hex-encoded as `X'…'`) can be produced on demand by
+`AppDatabase.exportSqlDump()`. The **Contact developer** action
+([Admin menu](#admin-menu)) uses this to write a timestamped
+`backup_smk_jaya_buana_<date>.sql` file before sharing it — the dump can be
+replayed against an empty SQLite database to restore the install.
 
 ## Default & seeded data
 

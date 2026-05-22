@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pengujian White Box - Absensi Wajah SMK Jaya Buana</title>
+<style>
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #fbf8f1; color: #1f2533; margin: 0; padding: 32px; line-height: 1.55; }
+  h1 { color: #0b1a35; font-size: 25px; border-bottom: 3px solid #e8c547; padding-bottom: 10px; }
+  h2 { color: #0b1a35; font-size: 18px; margin-top: 36px; border-left: 5px solid #e8c547; padding-left: 12px; }
+  h3 { color: #0b1a35; font-size: 15px; margin-top: 22px; }
+  p { max-width: 1000px; }
+  .note { background: #fff; border: 1px solid #e3ddcb; border-radius: 8px; padding: 14px 18px; max-width: 1000px; }
+  .trace { background: #eee7d2; border-radius: 6px; padding: 6px 12px; display: inline-block; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; background: #fff; font-size: 13px; }
+  th, td { border: 1px solid #d8d2bf; padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: #0b1a35; color: #fff; }
+  tr:nth-child(even) td { background: #f4f0e4; }
+  code { background: #eee7d2; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  pre.plantuml { background: #0b1a35; color: #e8e3d3; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 12.5px; }
+  .cc { font-weight: 700; color: #b59a2e; }
+</style>
+</head>
+<body>
+
+<h1>Dokumen Pengujian White Box<br>Aplikasi Absensi Wajah SMK Jaya Buana</h1>
+<p class="note">Pengujian white box menelaah struktur logika internal program. Untuk tiap fungsi inti disajikan: (1) Flowchart, (2) Flowgraph, (3) Perhitungan Cyclomatic Complexity, dan (4) Basis Path / test case. Tiga fungsi kritis yang diuji: validasi PIN admin, penentuan status kehadiran, dan pencocokan wajah.</p>
+
+<!-- ============ FUNGSI 1 ============ -->
+<h2>Fungsi 1 &mdash; PinValidator.validate()</h2>
+<p>Code traceability: <span class="trace">lib/core/utils/pin_validator.dart &mdash; baris 14&ndash;38</span></p>
+<p>Fungsi ini memvalidasi PIN admin 6 digit: harus tepat 6 digit, hanya angka, tidak semua digit sama, dan bukan deret berurutan naik/turun.</p>
+
+<h3>1.1 Flowchart</h3>
+<pre class="plantuml">
+@startuml
+title Flowchart - PinValidator.validate()
+start
+if (panjang PIN != 6 ?) then (ya)
+  :return "PIN must be 6 digits";
+  stop
+else (tidak)
+endif
+if (PIN bukan angka semua ?) then (ya)
+  :return "PIN must contain digits only";
+  stop
+else (tidak)
+endif
+:pecah PIN menjadi list digit;
+if (semua digit sama ?) then (ya)
+  :return "PIN cannot be all same digit";
+  stop
+else (tidak)
+endif
+:set ascending=true, descending=true, i=1;
+while (i < 6 ?) is (ya)
+  :perbarui flag ascending & descending;
+  :i = i + 1;
+endwhile (tidak)
+if (ascending ATAU descending ?) then (ya)
+  :return "PIN cannot be sequential";
+  stop
+else (tidak)
+  :return null (PIN valid);
+  stop
+endif
+@enduml
+</pre>
+
+<h3>1.2 Flowgraph</h3>
+<pre class="plantuml">
+@startuml
+title Flowgraph - PinValidator.validate()
+left to right direction
+usecase "1" as N1
+usecase "2" as N2
+usecase "3" as N3
+usecase "4" as N4
+usecase "5" as N5
+usecase "6" as N6
+usecase "7" as N7
+usecase "8" as N8
+usecase "9" as N9
+usecase "10" as N10
+usecase "11" as N11
+usecase "12" as N12
+
+N1 --> N2
+N1 --> N3
+N3 --> N4
+N3 --> N5
+N5 --> N6
+N5 --> N7
+N7 --> N8
+N7 --> N9
+N8 --> N7
+N9 --> N10
+N9 --> N11
+N2 --> N12
+N4 --> N12
+N6 --> N12
+N10 --> N12
+N11 --> N12
+@enduml
+</pre>
+<p>Keterangan node: <code>1</code>=cek panjang, <code>2</code>=return panjang salah, <code>3</code>=cek hanya angka, <code>4</code>=return bukan angka, <code>5</code>=cek semua sama, <code>6</code>=return semua sama, <code>7</code>=kondisi loop, <code>8</code>=proses dalam loop, <code>9</code>=cek berurutan, <code>10</code>=return berurutan, <code>11</code>=return valid, <code>12</code>=titik akhir.</p>
+
+<h3>1.3 Cyclomatic Complexity</h3>
+<table>
+  <tr><th>Metode Perhitungan</th><th>Rumus</th><th>Hasil</th></tr>
+  <tr><td>Berdasarkan jumlah edge &amp; node</td><td>V(G) = E &minus; N + 2</td><td>16 &minus; 12 + 2 = <span class="cc">6</span></td></tr>
+  <tr><td>Berdasarkan jumlah predikat (decision)</td><td>V(G) = P + 1</td><td>5 + 1 = <span class="cc">6</span></td></tr>
+  <tr><td>Berdasarkan jumlah region</td><td>V(G) = jumlah region</td><td><span class="cc">6</span></td></tr>
+</table>
+<p>E = 16 edge, N = 12 node, P = 5 simpul keputusan (node 1, 3, 5, 7, 9). <strong>Cyclomatic Complexity = 6</strong> &rarr; dibutuhkan 6 jalur independen.</p>
+
+<h3>1.4 Basis Path &amp; Test Case</h3>
+<table>
+  <tr><th>Path</th><th>Jalur Node</th><th>Kondisi Uji</th><th>Data Uji</th><th>Hasil Diharapkan</th></tr>
+  <tr><td>P1</td><td>1-2-12</td><td>Panjang PIN bukan 6</td><td>"2859"</td><td>"PIN must be exactly 6 digits."</td></tr>
+  <tr><td>P2</td><td>1-3-4-12</td><td>PIN memuat non-digit</td><td>"28a913"</td><td>"PIN must contain digits only."</td></tr>
+  <tr><td>P3</td><td>1-3-5-6-12</td><td>Semua digit sama</td><td>"111111"</td><td>"PIN cannot be all the same digit."</td></tr>
+  <tr><td>P4</td><td>1-3-5-7-8-7-9-10-12</td><td>PIN deret berurutan</td><td>"123456"</td><td>"PIN cannot be a sequential number."</td></tr>
+  <tr><td>P5</td><td>1-3-5-7-8-7-9-11-12</td><td>PIN valid</td><td>"285913"</td><td>null (PIN diterima)</td></tr>
+  <tr><td>P6</td><td>1-3-5-7-8-7-8-7-9-11-12</td><td>Loop iterasi berulang penuh</td><td>"482061"</td><td>null (PIN diterima)</td></tr>
+</table>
+
+<!-- ============ FUNGSI 2 ============ -->
+<h2>Fungsi 2 &mdash; statusForCheckIn()</h2>
+<p>Code traceability: <span class="trace">lib/core/utils/time_utils.dart &mdash; baris 21&ndash;29</span></p>
+<p>Fungsi ini menentukan status kehadiran saat check-in: "Hadir" bila check-in masih dalam toleransi 1 jam sejak jam masuk, atau "Terlambat" bila melewatinya.</p>
+
+<h3>2.1 Flowchart</h3>
+<pre class="plantuml">
+@startuml
+title Flowchart - statusForCheckIn()
+start
+:hitung clockInDt dari jam masuk;
+:lateThreshold = clockInDt + 1 jam;
+if (waktu sekarang < lateThreshold ?) then (ya)
+  :return AttendanceStatus.present;
+  stop
+else (tidak)
+  :return AttendanceStatus.late;
+  stop
+endif
+@enduml
+</pre>
+
+<h3>2.2 Flowgraph</h3>
+<pre class="plantuml">
+@startuml
+title Flowgraph - statusForCheckIn()
+left to right direction
+usecase "1" as N1
+usecase "2" as N2
+usecase "3" as N3
+usecase "4" as N4
+
+N1 --> N2
+N1 --> N3
+N2 --> N4
+N3 --> N4
+@enduml
+</pre>
+<p>Keterangan node: <code>1</code>=hitung threshold &amp; cek waktu, <code>2</code>=return present, <code>3</code>=return late, <code>4</code>=titik akhir.</p>
+
+<h3>2.3 Cyclomatic Complexity</h3>
+<table>
+  <tr><th>Metode Perhitungan</th><th>Rumus</th><th>Hasil</th></tr>
+  <tr><td>Berdasarkan edge &amp; node</td><td>V(G) = E &minus; N + 2</td><td>4 &minus; 4 + 2 = <span class="cc">2</span></td></tr>
+  <tr><td>Berdasarkan predikat</td><td>V(G) = P + 1</td><td>1 + 1 = <span class="cc">2</span></td></tr>
+  <tr><td>Berdasarkan region</td><td>V(G) = jumlah region</td><td><span class="cc">2</span></td></tr>
+</table>
+<p>E = 4 edge, N = 4 node, P = 1 simpul keputusan. <strong>Cyclomatic Complexity = 2</strong>.</p>
+
+<h3>2.4 Basis Path &amp; Test Case</h3>
+<table>
+  <tr><th>Path</th><th>Jalur Node</th><th>Kondisi Uji</th><th>Data Uji</th><th>Hasil Diharapkan</th></tr>
+  <tr><td>P1</td><td>1-2-4</td><td>Check-in dalam toleransi</td><td>jam masuk 07:00, scan 07:30</td><td>AttendanceStatus.present (Hadir)</td></tr>
+  <tr><td>P2</td><td>1-3-4</td><td>Check-in melewati toleransi</td><td>jam masuk 07:00, scan 08:20</td><td>AttendanceStatus.late (Terlambat)</td></tr>
+</table>
+
+<!-- ============ FUNGSI 3 ============ -->
+<h2>Fungsi 3 &mdash; FaceRecognitionService.matchAgainst()</h2>
+<p>Code traceability: <span class="trace">lib/core/services/face_recognition_service.dart &mdash; baris 125&ndash;142</span></p>
+<p>Fungsi ini mencocokkan vektor wajah hasil scan terhadap daftar siswa, memilih kemiripan (cosine similarity) tertinggi, dan mengembalikan hasil hanya bila melewati ambang batas.</p>
+
+<h3>3.1 Flowchart</h3>
+<pre class="plantuml">
+@startuml
+title Flowchart - matchAgainst()
+start
+:best = null;
+while (masih ada kandidat siswa ?) is (ya)
+  :ambil embedding kandidat;
+  if (embedding null / kosong ?) then (ya)
+    :lewati kandidat ini;
+  else (tidak)
+    :hitung cosine similarity;
+    if (best null ATAU similarity lebih tinggi ?) then (ya)
+      :best = FaceMatch(siswa, similarity);
+    else (tidak)
+    endif
+  endif
+endwhile (tidak)
+if (best masih null ?) then (ya)
+  :return null;
+  stop
+else (tidak)
+endif
+if (similarity best < ambang batas ?) then (ya)
+  :return null;
+  stop
+else (tidak)
+  :return best (wajah cocok);
+  stop
+endif
+@enduml
+</pre>
+
+<h3>3.2 Flowgraph</h3>
+<pre class="plantuml">
+@startuml
+title Flowgraph - matchAgainst()
+left to right direction
+usecase "1" as N1
+usecase "2" as N2
+usecase "3" as N3
+usecase "4" as N4
+usecase "5" as N5
+usecase "6" as N6
+usecase "7" as N7
+usecase "8" as N8
+usecase "9" as N9
+usecase "10" as N10
+usecase "11" as N11
+
+N1 --> N2
+N1 --> N6
+N2 --> N3
+N2 --> N5
+N3 --> N4
+N3 --> N5
+N4 --> N5
+N5 --> N1
+N6 --> N7
+N6 --> N8
+N8 --> N9
+N8 --> N10
+N7 --> N11
+N9 --> N11
+N10 --> N11
+@enduml
+</pre>
+<p>Keterangan node: <code>1</code>=kondisi loop kandidat, <code>2</code>=cek embedding kosong, <code>3</code>=cek similarity terbaik, <code>4</code>=perbarui best, <code>5</code>=lanjut iterasi, <code>6</code>=cek best null, <code>7</code>=return null (tak ada kandidat), <code>8</code>=cek di bawah ambang, <code>9</code>=return null (di bawah ambang), <code>10</code>=return best, <code>11</code>=titik akhir.</p>
+
+<h3>3.3 Cyclomatic Complexity</h3>
+<table>
+  <tr><th>Metode Perhitungan</th><th>Rumus</th><th>Hasil</th></tr>
+  <tr><td>Berdasarkan edge &amp; node</td><td>V(G) = E &minus; N + 2</td><td>15 &minus; 11 + 2 = <span class="cc">6</span></td></tr>
+  <tr><td>Berdasarkan predikat</td><td>V(G) = P + 1</td><td>5 + 1 = <span class="cc">6</span></td></tr>
+  <tr><td>Berdasarkan region</td><td>V(G) = jumlah region</td><td><span class="cc">6</span></td></tr>
+</table>
+<p>E = 15 edge, N = 11 node, P = 5 simpul keputusan (node 1, 2, 3, 6, 8). <strong>Cyclomatic Complexity = 6</strong>.</p>
+
+<h3>3.4 Basis Path &amp; Test Case</h3>
+<table>
+  <tr><th>Path</th><th>Jalur Node</th><th>Kondisi Uji</th><th>Data Uji</th><th>Hasil Diharapkan</th></tr>
+  <tr><td>P1</td><td>1-6-7-11</td><td>Daftar kandidat kosong</td><td>candidates = []</td><td>return null</td></tr>
+  <tr><td>P2</td><td>1-2-5-1-6-7-11</td><td>Kandidat tanpa embedding dilewati</td><td>1 siswa, embedding = null</td><td>return null</td></tr>
+  <tr><td>P3</td><td>1-2-3-4-5-1-6-8-10-11</td><td>Kandidat cocok &ge; ambang 0.65</td><td>siswa "Andini", similarity 0.88</td><td>return FaceMatch (Andini)</td></tr>
+  <tr><td>P4</td><td>1-2-3-4-5-1-6-8-9-11</td><td>Best ditemukan namun di bawah ambang</td><td>similarity tertinggi 0.40</td><td>return null</td></tr>
+  <tr><td>P5</td><td>1-2-3-5-1-6-8-10-11</td><td>Kandidat berikutnya tidak lebih mirip</td><td>2 siswa, similarity 0.90 lalu 0.55</td><td>return FaceMatch (similarity 0.90)</td></tr>
+  <tr><td>P6</td><td>1-2-3-4-5-1-2-3-4-5-1-6-8-10-11</td><td>Loop iterasi berulang multi-kandidat</td><td>3 siswa dengan embedding valid</td><td>return FaceMatch terbaik</td></tr>
+</table>
+
+</body>
+</html>

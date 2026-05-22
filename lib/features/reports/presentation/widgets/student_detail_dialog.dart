@@ -45,14 +45,14 @@ class StudentDetailDialog extends StatelessWidget {
                     fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: AppSpacing.x14),
-              Row(
+              Wrap(
+                spacing: AppSpacing.x6,
+                runSpacing: AppSpacing.x6,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   _Pill(label: 'Hadir', value: student.present, color: c.success),
-                  const SizedBox(width: AppSpacing.x6),
                   _Pill(label: 'Terlambat', value: student.late, color: c.warn),
-                  const SizedBox(width: AppSpacing.x6),
                   _Pill(label: 'Absen', value: student.absent, color: c.danger),
-                  const Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 4),

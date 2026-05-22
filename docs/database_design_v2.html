@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Desain Basis Data Relasional (ERD &rarr; LRS) - Absensi Wajah SMK Jaya Buana</title>
+<style>
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #fbf8f1; color: #1f2533; margin: 0; padding: 32px; line-height: 1.6; }
+  h1 { color: #0b1a35; font-size: 26px; border-bottom: 3px solid #e8c547; padding-bottom: 10px; }
+  h2 { color: #0b1a35; font-size: 19px; margin-top: 36px; border-left: 5px solid #e8c547; padding-left: 12px; }
+  h3 { color: #0b1a35; font-size: 16px; margin-top: 24px; }
+  p { max-width: 980px; }
+  .note { background: #fff; border: 1px solid #e3ddcb; border-radius: 8px; padding: 14px 18px; max-width: 980px; }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; background: #fff; font-size: 13px; }
+  th, td { border: 1px solid #d8d2bf; padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: #0b1a35; color: #fff; }
+  tr:nth-child(even) td { background: #f4f0e4; }
+  code { background: #eee7d2; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  pre.plantuml { background: #0b1a35; color: #e8e3d3; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+  caption { font-weight: 700; color: #0b1a35; text-align: left; padding: 8px 0; font-size: 15px; }
+  .yes { color: #1f7a4a; font-weight: 700; }
+  .no { color: #999; }
+</style>
+</head>
+<body>
+
+<h1>Desain Basis Data Relasional &mdash; ERD &rarr; LRS<br>Aplikasi Absensi Wajah SMK Jaya Buana</h1>
+<p class="note">Dokumen ini menyajikan perancangan basis data relasional aplikasi absensi siswa berbasis pengenalan wajah SMK Jaya Buana, mulai dari <strong>Entity Relationship Diagram (ERD)</strong>, proses <strong>transformasi ERD ke LRS</strong>, <strong>Logical Record Structure (LRS) final</strong>, hingga <strong>spesifikasi basis data</strong>. Semua kode PlantUML berada di dalam tag <code>&lt;pre class='plantuml'&gt;</code> agar dapat di-render manual.</p>
+
+<h2>1. Entity Relationship Diagram (ERD)</h2>
+<p>Domain aplikasi terdiri atas lima entitas. <strong>Admin</strong> adalah akun pengelola terminal. <strong>Kelas</strong> menampung banyak <strong>Siswa</strong> (relasi one-to-many). Setiap <strong>Siswa</strong> memiliki banyak catatan <strong>Absensi</strong> harian (one-to-many). <strong>Pengaturan</strong> adalah entitas konfigurasi terminal yang bersifat key-value dan berdiri sendiri. Tidak terdapat relasi many-to-many pada domain ini.</p>
+<pre class="plantuml">
+@startuml
+title ERD - Aplikasi Absensi Wajah SMK Jaya Buana
+
+entity "ADMIN" as admin {
+  * id : INTEGER &lt;&lt;PK&gt;&gt;
+  --
+  + username : TEXT &lt;&lt;NN&gt;&gt;
+  + pin_hash : TEXT &lt;&lt;NN&gt;&gt;
+  + created_at : TEXT &lt;&lt;NN&gt;&gt;
+}
+
+entity "KELAS" as kelas {
+  * id : INTEGER &lt;&lt;PK&gt;&gt;
+  --
+  + nama : TEXT &lt;&lt;NN&gt;&gt;
+  + created_at : TEXT &lt;&lt;NN&gt;&gt;
+}
+
+entity "SISWA" as siswa {
+  * id : INTEGER &lt;&lt;PK&gt;&gt;
+  --
+  + kelas_id : INTEGER &lt;&lt;FK&gt;&gt; &lt;&lt;NN&gt;&gt;
+  + nama : TEXT &lt;&lt;NN&gt;&gt;
+  + nis : TEXT &lt;&lt;NN&gt;&gt;
+  photo_path : TEXT
+  embedding : BLOB
+  + is_draft : INTEGER &lt;&lt;NN&gt;&gt;
+  + created_at : TEXT &lt;&lt;NN&gt;&gt;
+}
+
+entity "ABSENSI" as absensi {
+  * id : INTEGER &lt;&lt;PK&gt;&gt;
+  --
+  + siswa_id : INTEGER &lt;&lt;FK&gt;&gt; &lt;&lt;NN&gt;&gt;
+  + tanggal : TEXT &lt;&lt;NN&gt;&gt;
+  check_in_time : TEXT
+  check_out_time : TEXT
+  + status : TEXT &lt;&lt;NN&gt;&gt;
+}
+
+entity "PENGATURAN" as pengaturan {
+  * key : TEXT &lt;&lt;PK&gt;&gt;
+  --
+  + value : TEXT &lt;&lt;NN&gt;&gt;
+}
+
+kelas ||--o{ siswa : "menampung"
+siswa ||--o{ absensi : "memiliki"
+@enduml
+</pre>
+
+<h2>2. Transformasi ERD ke LRS (Logical Record Structure)</h2>
+<p>Transformasi dilakukan dengan kaidah baku berikut:</p>
+<ul>
+  <li><strong>Relasi one-to-many KELAS &rarr; SISWA:</strong> foreign key ditempatkan di sisi <em>many</em>. Maka tabel <code>SISWA</code> memperoleh kolom <code>kelas_id</code> yang mereferensi <code>KELAS.id</code>.</li>
+  <li><strong>Relasi one-to-many SISWA &rarr; ABSENSI:</strong> foreign key ditempatkan di sisi <em>many</em>. Maka tabel <code>ABSENSI</code> memperoleh kolom <code>siswa_id</code> yang mereferensi <code>SISWA.id</code>. Pasangan <code>(siswa_id, tanggal)</code> dijadikan kunci unik agar satu siswa hanya punya satu baris absensi per hari.</li>
+  <li><strong>Tidak ada relasi many-to-many,</strong> sehingga tidak diperlukan tabel junction.</li>
+  <li><strong>Tidak ada weak entity,</strong> seluruh entitas memiliki primary key tunggal sendiri.</li>
+  <li><strong>Atribut multivalue:</strong> vektor wajah disimpan sebagai satu kolom <code>embedding</code> bertipe BLOB (serialisasi 192 float), sehingga tidak dipecah menjadi tabel terpisah. Begitu pula <code>PENGATURAN</code> yang dimodelkan sebagai tabel key-value tunggal.</li>
+  <li><strong>Entitas ADMIN dan PENGATURAN</strong> tidak memiliki relasi, ditransformasikan menjadi tabel mandiri tanpa foreign key.</li>
+</ul>
+<p>Hasil transformasi: lima entitas ERD menjadi lima tabel LRS &mdash; <code>admin</code>, <code>kelas</code>, <code>siswa</code>, <code>absensi</code>, dan <code>pengaturan</code> &mdash; dengan dua foreign key (<code>siswa.kelas_id</code> dan <code>absensi.siswa_id</code>).</p>
+<pre class="plantuml">
+@startuml
+title Transformasi ERD ke LRS - Absensi Wajah SMK Jaya Buana
+
+class "admin" &lt;&lt;Table&gt;&gt; {
+  + PK id : INTEGER
+  - username : TEXT
+  - pin_hash : TEXT
+  - created_at : TEXT
+}
+
+class "kelas" &lt;&lt;Table&gt;&gt; {
+  + PK id : INTEGER
+  - nama : TEXT
+  - created_at : TEXT
+}
+
+class "siswa" &lt;&lt;Table&gt;&gt; {
+  + PK id : INTEGER
+  # FK kelas_id : INTEGER
+  - nama : TEXT
+  - nis : TEXT
+  - photo_path : TEXT
+  - embedding : BLOB
+  - is_draft : INTEGER
+  - created_at : TEXT
+}
+
+class "absensi" &lt;&lt;Table&gt;&gt; {
+  + PK id : INTEGER
+  # FK siswa_id : INTEGER
+  - tanggal : TEXT
+  - check_in_time : TEXT
+  - check_out_time : TEXT
+  - status : TEXT
+}
+
+class "pengaturan" &lt;&lt;Table&gt;&gt; {
+  + PK key : TEXT
+  - value : TEXT
+}
+
+note bottom of siswa : FK kelas_id hasil transformasi\nrelasi 1-N KELAS -> SISWA
+note bottom of absensi : FK siswa_id hasil transformasi\nrelasi 1-N SISWA -> ABSENSI
+
+siswa --> kelas : kelas_id
+absensi --> siswa : siswa_id
+@enduml
+</pre>
+
+<h2>3. Logical Record Structure (LRS) &mdash; Final</h2>
+<p>LRS final di bawah ini adalah skema logis bersih hasil transformasi, tanpa anotasi proses. Struktur ini konsisten 100% dengan ERD dan Spesifikasi Basis Data.</p>
+<pre class="plantuml">
+@startuml
+title LRS Final - Aplikasi Absensi Wajah SMK Jaya Buana
+
+class "admin" &lt;&lt;Table&gt;&gt; {
+  + PK id : INTEGER
+  - username : TEXT
+  - pin_hash : TEXT
+  - created_at : TEXT
+}
+
+class "kelas" &lt;&lt;Table&gt;&gt; {
+  + PK id : INTEGER
+  - nama : TEXT
+  - created_at : TEXT
+}
+
+class "siswa" &lt;&lt;Table&gt;&gt; {
+  + PK id : INTEGER
+  # FK kelas_id : INTEGER
+  - nama : TEXT
+  - nis : TEXT
+  - photo_path : TEXT
+  - embedding : BLOB
+  - is_draft : INTEGER
+  - created_at : TEXT
+}
+
+class "absensi" &lt;&lt;Table&gt;&gt; {
+  + PK id : INTEGER
+  # FK siswa_id : INTEGER
+  - tanggal : TEXT
+  - check_in_time : TEXT
+  - check_out_time : TEXT
+  - status : TEXT
+}
+
+class "pengaturan" &lt;&lt;Table&gt;&gt; {
+  + PK key : TEXT
+  - value : TEXT
+}
+
+kelas "1" --> "0..*" siswa : memiliki
+siswa "1" --> "0..*" absensi : mencatat
+@enduml
+</pre>
+
+<h2>4. Spesifikasi Basis Data</h2>
+<p>Satu tabel HTML per tabel database. Urutan kolom: Primary Key, lalu Foreign Key, lalu atribut biasa.</p>
+
+<table>
+  <caption>Tabel: admin</caption>
+  <tr><th>No</th><th>Nama Field</th><th>Tipe Data</th><th>Ukuran</th><th>PK</th><th>FK</th><th>Null</th><th>Default</th><th>Deskripsi</th></tr>
+  <tr><td>1</td><td>id</td><td>INTEGER</td><td>&mdash;</td><td class="yes">PK</td><td class="no">&mdash;</td><td>NOT NULL</td><td>AUTOINCREMENT</td><td>Identitas unik akun admin</td></tr>
+  <tr><td>2</td><td>username</td><td>TEXT</td><td>&mdash;</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NOT NULL</td><td>&mdash;</td><td>Nama pengguna admin terminal</td></tr>
+  <tr><td>3</td><td>pin_hash</td><td>TEXT</td><td>64</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NOT NULL</td><td>&mdash;</td><td>Hash SHA-256 dari PIN 6 digit</td></tr>
+  <tr><td>4</td><td>created_at</td><td>TEXT</td><td>&mdash;</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NOT NULL</td><td>&mdash;</td><td>Waktu pembuatan akun (ISO-8601)</td></tr>
+</table>
+
+<table>
+  <caption>Tabel: kelas</caption>
+  <tr><th>No</th><th>Nama Field</th><th>Tipe Data</th><th>Ukuran</th><th>PK</th><th>FK</th><th>Null</th><th>Default</th><th>Deskripsi</th></tr>
+  <tr><td>1</td><td>id</td><td>INTEGER</td><td>&mdash;</td><td class="yes">PK</td><td class="no">&mdash;</td><td>NOT NULL</td><td>AUTOINCREMENT</td><td>Identitas unik kelas</td></tr>
+  <tr><td>2</td><td>nama</td><td>TEXT</td><td>&mdash;</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NOT NULL</td><td>&mdash;</td><td>Nama kelas, unik, mis. "XI · RPL · A"</td></tr>
+  <tr><td>3</td><td>created_at</td><td>TEXT</td><td>&mdash;</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NOT NULL</td><td>&mdash;</td><td>Waktu kelas ditambahkan (ISO-8601)</td></tr>
+</table>
+
+<table>
+  <caption>Tabel: siswa</caption>
+  <tr><th>No</th><th>Nama Field</th><th>Tipe Data</th><th>Ukuran</th><th>PK</th><th>FK</th><th>Null</th><th>Default</th><th>Deskripsi</th></tr>
+  <tr><td>1</td><td>id</td><td>INTEGER</td><td>&mdash;</td><td class="yes">PK</td><td class="no">&mdash;</td><td>NOT NULL</td><td>AUTOINCREMENT</td><td>Identitas unik siswa</td></tr>
+  <tr><td>2</td><td>kelas_id</td><td>INTEGER</td><td>&mdash;</td><td class="no">&mdash;</td><td class="yes">FK &rarr; kelas.id</td><td>NOT NULL</td><td>&mdash;</td><td>Kelas tempat siswa terdaftar</td></tr>
+  <tr><td>3</td><td>nama</td><td>TEXT</td><td>&mdash;</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NOT NULL</td><td>&mdash;</td><td>Nama lengkap siswa</td></tr>
+  <tr><td>4</td><td>nis</td><td>TEXT</td><td>&mdash;</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NOT NULL</td><td>&mdash;</td><td>Nomor Induk Siswa, unik</td></tr>
+  <tr><td>5</td><td>photo_path</td><td>TEXT</td><td>&mdash;</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NULL</td><td>NULL</td><td>Lokasi file pas-foto siswa</td></tr>
+  <tr><td>6</td><td>embedding</td><td>BLOB</td><td>768 byte</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NULL</td><td>NULL</td><td>Vektor wajah 192 float hasil MobileFaceNet</td></tr>
+  <tr><td>7</td><td>is_draft</td><td>INTEGER</td><td>1</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NOT NULL</td><td>0</td><td>Penanda data siswa belum lengkap (1 = draft)</td></tr>
+  <tr><td>8</td><td>created_at</td><td>TEXT</td><td>&mdash;</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NOT NULL</td><td>&mdash;</td><td>Waktu siswa didaftarkan (ISO-8601)</td></tr>
+</table>
+
+<table>
+  <caption>Tabel: absensi</caption>
+  <tr><th>No</th><th>Nama Field</th><th>Tipe Data</th><th>Ukuran</th><th>PK</th><th>FK</th><th>Null</th><th>Default</th><th>Deskripsi</th></tr>
+  <tr><td>1</td><td>id</td><td>INTEGER</td><td>&mdash;</td><td class="yes">PK</td><td class="no">&mdash;</td><td>NOT NULL</td><td>AUTOINCREMENT</td><td>Identitas unik catatan absensi</td></tr>
+  <tr><td>2</td><td>siswa_id</td><td>INTEGER</td><td>&mdash;</td><td class="no">&mdash;</td><td class="yes">FK &rarr; siswa.id</td><td>NOT NULL</td><td>&mdash;</td><td>Siswa pemilik catatan absensi</td></tr>
+  <tr><td>3</td><td>tanggal</td><td>TEXT</td><td>10</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NOT NULL</td><td>&mdash;</td><td>Tanggal absensi (YYYY-MM-DD); unik bersama siswa_id</td></tr>
+  <tr><td>4</td><td>check_in_time</td><td>TEXT</td><td>8</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NULL</td><td>NULL</td><td>Jam masuk (HH:mm:ss)</td></tr>
+  <tr><td>5</td><td>check_out_time</td><td>TEXT</td><td>8</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NULL</td><td>NULL</td><td>Jam pulang (HH:mm:ss)</td></tr>
+  <tr><td>6</td><td>status</td><td>TEXT</td><td>10</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NOT NULL</td><td>&mdash;</td><td>Status kehadiran: present / late / absent</td></tr>
+</table>
+
+<table>
+  <caption>Tabel: pengaturan</caption>
+  <tr><th>No</th><th>Nama Field</th><th>Tipe Data</th><th>Ukuran</th><th>PK</th><th>FK</th><th>Null</th><th>Default</th><th>Deskripsi</th></tr>
+  <tr><td>1</td><td>key</td><td>TEXT</td><td>&mdash;</td><td class="yes">PK</td><td class="no">&mdash;</td><td>NOT NULL</td><td>&mdash;</td><td>Kunci pengaturan (mis. clock_in_time, active_class_ids)</td></tr>
+  <tr><td>2</td><td>value</td><td>TEXT</td><td>&mdash;</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NOT NULL</td><td>&mdash;</td><td>Nilai pengaturan dalam bentuk teks</td></tr>
+</table>
+
+</body>
+</html>

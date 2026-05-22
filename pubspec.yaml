@@ -2,7 +2,7 @@ name: flutter_absensi_smk_jaya_buana
 description: "Face-recognition student attendance app for SMK Jaya Buana."
 publish_to: 'none'
 
-version: 1.7.0
+version: 1.8.0
 
 environment:
   sdk: ^3.10.8
@@ -38,6 +38,7 @@ dependencies:
   intl: ^0.19.0
   permission_handler: ^11.3.1
   url_launcher: ^6.3.0
+  share_plus: ^10.1.4
 
   # PDF
   pdf: ^3.11.1
@@ -66,3 +67,7 @@ flutter_launcher_icons:
   remove_alpha_ios: true
   adaptive_icon_background: "#FBF8F1"
   adaptive_icon_foreground: "assets/images/logo.png"
+  # Extra padding so the full logo (incl. the "JAYA BUANA" text) stays
+  # inside the adaptive-icon safe zone and is not clipped by the launcher
+  # mask (circle / squircle / rounded square).
+  adaptive_icon_foreground_inset: 25

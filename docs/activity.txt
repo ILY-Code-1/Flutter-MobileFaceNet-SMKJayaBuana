@@ -1,0 +1,184 @@
+' == Activity: Registrasi Akun Admin ==
+@startuml
+title Activity: Registrasi Akun Admin
+|Admin|
+start
+:Buka aplikasi untuk pertama kali;
+:Isi username admin;
+repeat
+  :Masukkan PIN 6 digit;
+  :Konfirmasi ulang PIN;
+|Sistem|
+backward:Tampilkan pesan kesalahan PIN;
+repeat while (PIN valid & cocok?) is (tidak) not (ya)
+:Simpan akun admin;
+:Buat data kelas & siswa awal;
+:Tampilkan layar kamera absensi;
+stop
+@enduml
+
+' == Activity: Melakukan Absensi Wajah ==
+@startuml
+title Activity: Melakukan Absensi Wajah
+|Siswa|
+start
+:Berdiri di depan kamera terminal;
+:Tekan tombol "Mulai Scan";
+|Sistem|
+:Ambil foto & kenali wajah;
+if (Wajah dikenali?) then (tidak)
+  :Tampilkan "Wajah tidak dikenali";
+  stop
+else (ya)
+  :Tampilkan data siswa & status hari ini;
+endif
+|Siswa|
+if (Pilih aksi absensi) then (Check-in)
+  |Sistem|
+  :Simpan jam masuk & status kehadiran;
+else (Check-out)
+  |Sistem|
+  :Simpan jam pulang;
+endif
+:Tampilkan halaman sukses absensi;
+stop
+@enduml
+
+' == Activity: Masuk Menu Admin ==
+@startuml
+title Activity: Masuk Menu Admin
+|Admin|
+start
+:Tekan ikon menu di layar kamera;
+repeat
+  :Masukkan PIN admin 6 digit;
+|Sistem|
+:Verifikasi PIN;
+backward:Tampilkan pesan "PIN salah";
+repeat while (PIN benar?) is (tidak) not (ya)
+:Buka halaman menu admin;
+stop
+@enduml
+
+' == Activity: Kelola Data Siswa ==
+@startuml
+title Activity: Kelola Data Siswa
+|Admin|
+start
+:Buka menu admin & pilih "Students";
+:Pilih tambah / ubah / hapus siswa;
+if (Aksi yang dipilih?) then (Hapus)
+  |Sistem|
+  :Hapus siswa & riwayat absensinya;
+else (Tambah / Ubah)
+  |Admin|
+  :Isi nama, NIS, kelas & unggah pas-foto;
+  :Proses embedding wajah;
+  |Sistem|
+  :Simpan data siswa;
+endif
+:Perbarui daftar siswa;
+stop
+@enduml
+
+' == Activity: Kelola Data Kelas ==
+@startuml
+title Activity: Kelola Data Kelas
+|Admin|
+start
+:Buka halaman Pengaturan;
+:Pilih tambah / ubah / hapus kelas;
+if (Hapus kelas?) then (ya)
+  |Sistem|
+  if (Kelas masih dipakai siswa?) then (ya)
+    :Tolak penghapusan kelas;
+    stop
+  else (tidak)
+    :Hapus data kelas;
+  endif
+else (tidak)
+  |Admin|
+  :Masukkan nama kelas;
+  |Sistem|
+  :Simpan data kelas;
+endif
+:Perbarui daftar kelas;
+stop
+@enduml
+
+' == Activity: Lihat Laporan Absensi ==
+@startuml
+title Activity: Lihat Laporan Absensi
+|Admin|
+start
+:Buka menu "Reports";
+:Atur filter kelas, tahun, bulan & tanggal;
+|Sistem|
+:Ambil data absensi sesuai filter;
+:Hitung rekap Hadir / Terlambat / Absen;
+:Tampilkan tabel rekap & persentase;
+|Admin|
+if (Lihat detail siswa?) then (ya)
+  |Sistem|
+  :Tampilkan rincian absensi siswa;
+else (tidak)
+endif
+stop
+@enduml
+
+' == Activity: Ekspor Laporan PDF ==
+@startuml
+title Activity: Ekspor Laporan PDF
+|Admin|
+start
+:Buka laporan absensi dengan filter aktif;
+:Tekan tombol "Export PDF";
+|Sistem|
+:Susun dokumen PDF rekap absensi;
+if (Pembuatan PDF berhasil?) then (tidak)
+  :Tampilkan pesan ekspor gagal;
+  stop
+else (ya)
+  :Tampilkan dialog bagikan / simpan PDF;
+endif
+|Admin|
+:Bagikan atau cetak laporan;
+stop
+@enduml
+
+' == Activity: Atur Pengaturan Aplikasi ==
+@startuml
+title Activity: Atur Pengaturan Aplikasi
+|Admin|
+start
+:Buka halaman Pengaturan;
+:Pilih kelas aktif untuk terminal;
+:Atur jam masuk, pulang & batas pulang;
+:Ubah nama perangkat & suara scan;
+|Sistem|
+:Simpan pengaturan aplikasi;
+:Terapkan pengaturan pada layar absensi;
+stop
+@enduml
+
+' == Activity: Hubungi Developer & Backup Database ==
+@startuml
+title Activity: Hubungi Developer & Backup Database
+|Admin|
+start
+:Buka menu admin;
+if (Aksi pada footer?) then (Contact developer)
+  :Tekan tombol "Contact developer";
+  |Sistem|
+  :Buka WhatsApp developer berisi pesan keluhan;
+else (Backup Database)
+  |Admin|
+  :Tekan tombol "Backup Database";
+  |Sistem|
+  :Cadangkan basis data ke berkas .sql;
+  :Buka lembar berbagi berkas cadangan;
+  |Admin|
+  :Pilih aplikasi & kirim berkas ke developer;
+endif
+stop
+@enduml

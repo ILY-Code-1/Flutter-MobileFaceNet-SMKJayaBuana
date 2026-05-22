@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pengujian Black Box - Absensi Wajah SMK Jaya Buana</title>
+<style>
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #fbf8f1; color: #1f2533; margin: 0; padding: 32px; line-height: 1.55; }
+  h1 { color: #0b1a35; font-size: 25px; border-bottom: 3px solid #e8c547; padding-bottom: 10px; }
+  h2 { color: #0b1a35; font-size: 17px; margin-top: 30px; border-left: 5px solid #e8c547; padding-left: 12px; }
+  p { max-width: 1000px; }
+  .note { background: #fff; border: 1px solid #e3ddcb; border-radius: 8px; padding: 14px 18px; max-width: 1000px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; background: #fff; font-size: 12.5px; }
+  th, td { border: 1px solid #d8d2bf; padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: #0b1a35; color: #fff; }
+  tr:nth-child(even) td { background: #f4f0e4; }
+  .pass { color: #1f7a4a; font-weight: 700; }
+  .ok { background: #e7f3ec !important; }
+</style>
+</head>
+<body>
+
+<h1>Dokumen Pengujian Black Box<br>Aplikasi Absensi Wajah SMK Jaya Buana</h1>
+<p class="note">Pengujian black box menguji seluruh fitur aplikasi dari sisi fungsional tanpa melihat kode program. Setiap use case diuji dengan minimal satu skenario sukses dan satu skenario gagal. Data uji menggunakan contoh nyata sesuai domain absensi siswa SMK Jaya Buana.</p>
+
+<h2>UC1 &mdash; Registrasi Akun Admin</h2>
+<table>
+  <tr><th>No</th><th>Deskripsi Pengujian</th><th>Langkah Uji</th><th>Data Uji</th><th>Hasil yang Diharapkan</th><th>Hasil Pengujian</th><th>Status</th><th>Keterangan</th></tr>
+  <tr class="ok"><td>1</td><td>Registrasi admin dengan username dan PIN valid</td><td>Buka aplikasi pertama kali &rarr; isi username &rarr; masukkan PIN &rarr; konfirmasi PIN</td><td>username: "operator-tu", PIN: 285913</td><td>Akun admin tersimpan, data kelas &amp; siswa awal dibuat, aplikasi masuk ke layar kamera absensi</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario sukses</td></tr>
+  <tr><td>2</td><td>Registrasi ditolak karena PIN berurutan</td><td>Isi username &rarr; masukkan PIN berurutan</td><td>username: "tu1", PIN: 123456</td><td>Muncul pesan "PIN cannot be a sequential number." dan PIN direset</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario gagal</td></tr>
+  <tr><td>3</td><td>Registrasi ditolak karena konfirmasi PIN tidak cocok</td><td>Masukkan PIN lalu konfirmasi dengan PIN berbeda</td><td>PIN: 285913, konfirmasi: 285914</td><td>Muncul pesan "PIN confirmation does not match." dan konfirmasi direset</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario gagal</td></tr>
+</table>
+
+<h2>UC2 &mdash; Melakukan Absensi Wajah</h2>
+<table>
+  <tr><th>No</th><th>Deskripsi Pengujian</th><th>Langkah Uji</th><th>Data Uji</th><th>Hasil yang Diharapkan</th><th>Hasil Pengujian</th><th>Status</th><th>Keterangan</th></tr>
+  <tr class="ok"><td>4</td><td>Check-in siswa terdaftar sebelum jam batas</td><td>Berdiri di depan kamera &rarr; tekan "Mulai Scan" &rarr; tekan "Clock In"</td><td>Siswa: Andini Pratiwi (NIS 2401001), waktu 07:05</td><td>Wajah dikenali, jam masuk tersimpan dengan status "Hadir", halaman sukses tampil</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario sukses</td></tr>
+  <tr class="ok"><td>5</td><td>Check-in siswa setelah toleransi 1 jam</td><td>Tekan "Mulai Scan" &rarr; tekan "Clock In"</td><td>Siswa: Bagus Setiawan, jam masuk 08:15</td><td>Absensi tersimpan dengan status "Terlambat"</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario sukses (status late)</td></tr>
+  <tr><td>6</td><td>Absensi gagal karena wajah tidak dikenali</td><td>Tekan "Mulai Scan" dengan wajah belum terdaftar</td><td>Wajah tamu non-siswa</td><td>Muncul dialog "Wajah tidak dikenali", kembali ke layar kamera</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario gagal</td></tr>
+  <tr><td>7</td><td>Check-out ditolak sebelum jam pulang</td><td>Scan wajah siswa yang sudah check-in &rarr; tekan "Clock Out" pukul 12:00</td><td>Siswa: Andini Pratiwi, jam pulang sekolah 15:30</td><td>Tombol Clock Out nonaktif / muncul pesan terlalu awal untuk pulang</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario gagal</td></tr>
+</table>
+
+<h2>UC3 &mdash; Masuk Menu Admin</h2>
+<table>
+  <tr><th>No</th><th>Deskripsi Pengujian</th><th>Langkah Uji</th><th>Data Uji</th><th>Hasil yang Diharapkan</th><th>Hasil Pengujian</th><th>Status</th><th>Keterangan</th></tr>
+  <tr class="ok"><td>8</td><td>Membuka menu admin dengan PIN benar</td><td>Tekan ikon menu di layar kamera &rarr; masukkan PIN</td><td>PIN: 285913</td><td>Lembar PIN tertutup, halaman menu admin terbuka</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario sukses</td></tr>
+  <tr><td>9</td><td>Akses menu ditolak karena PIN salah</td><td>Tekan ikon menu &rarr; masukkan PIN salah</td><td>PIN: 000000</td><td>Muncul pesan "PIN salah", input PIN direset, menu tidak terbuka</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario gagal</td></tr>
+</table>
+
+<h2>UC4 &mdash; Kelola Data Siswa</h2>
+<table>
+  <tr><th>No</th><th>Deskripsi Pengujian</th><th>Langkah Uji</th><th>Data Uji</th><th>Hasil yang Diharapkan</th><th>Hasil Pengujian</th><th>Status</th><th>Keterangan</th></tr>
+  <tr class="ok"><td>10</td><td>Menambah siswa baru lengkap dengan embedding wajah</td><td>Buka Students &rarr; Enroll face &rarr; isi data &rarr; unggah foto &rarr; Process embedding &rarr; Submit</td><td>Nama: "Gita Lestari", NIS: 2401007, Kelas: XI · MM · A</td><td>Embedding berhasil diproses, siswa tersimpan dan tampil di daftar</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario sukses</td></tr>
+  <tr><td>11</td><td>Submit ditolak karena embedding belum diproses</td><td>Isi nama, NIS, kelas &rarr; langsung tekan Submit tanpa Process embedding</td><td>Nama: "Haikal Pranoto", NIS: 2401008</td><td>Muncul pesan "Process the embedding before submitting."</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario gagal</td></tr>
+  <tr class="ok"><td>12</td><td>Menghapus siswa beserta riwayat absensi</td><td>Buka Students &rarr; tekan ikon hapus &rarr; konfirmasi</td><td>Siswa: Joko Anwari</td><td>Siswa dan seluruh catatan absensinya terhapus dari daftar</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario sukses</td></tr>
+</table>
+
+<h2>UC5 &mdash; Kelola Data Kelas</h2>
+<table>
+  <tr><th>No</th><th>Deskripsi Pengujian</th><th>Langkah Uji</th><th>Data Uji</th><th>Hasil yang Diharapkan</th><th>Hasil Pengujian</th><th>Status</th><th>Keterangan</th></tr>
+  <tr class="ok"><td>13</td><td>Menambah kelas baru dengan nama unik</td><td>Buka Settings &rarr; Add class &rarr; isi nama &rarr; Save</td><td>Nama kelas: "XII · RPL · B"</td><td>Kelas baru tersimpan dan muncul pada grid kelas</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario sukses</td></tr>
+  <tr><td>14</td><td>Penambahan kelas gagal karena nama duplikat</td><td>Add class &rarr; isi nama yang sudah ada</td><td>Nama kelas: "XI · RPL · A"</td><td>Muncul pesan gagal (class name must be unique)</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario gagal</td></tr>
+  <tr><td>15</td><td>Penghapusan kelas ditolak karena masih dipakai siswa</td><td>Tekan Delete pada kelas yang memiliki siswa &rarr; konfirmasi</td><td>Kelas: "XI · RPL · A" (berisi 6 siswa)</td><td>Muncul pesan "Cannot delete: class is in use by students."</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario gagal</td></tr>
+</table>
+
+<h2>UC6 &mdash; Lihat Laporan Absensi</h2>
+<table>
+  <tr><th>No</th><th>Deskripsi Pengujian</th><th>Langkah Uji</th><th>Data Uji</th><th>Hasil yang Diharapkan</th><th>Hasil Pengujian</th><th>Status</th><th>Keterangan</th></tr>
+  <tr class="ok"><td>16</td><td>Menampilkan rekap absensi bulan berjalan</td><td>Buka Reports &rarr; biarkan filter default (bulan ini)</td><td>Filter: Mei 2026, Semua kelas</td><td>Tabel rekap Hadir/Terlambat/Absen per siswa beserta persentase tampil</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario sukses</td></tr>
+  <tr><td>17</td><td>Rekap kosong untuk periode tanpa data</td><td>Buka Reports &rarr; atur filter ke tanggal tanpa absensi</td><td>Filter: 1 Januari 2025</td><td>Muncul pesan "No completed attendance found for this filter."</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario gagal / data kosong</td></tr>
+</table>
+
+<h2>UC7 &mdash; Ekspor Laporan PDF</h2>
+<table>
+  <tr><th>No</th><th>Deskripsi Pengujian</th><th>Langkah Uji</th><th>Data Uji</th><th>Hasil yang Diharapkan</th><th>Hasil Pengujian</th><th>Status</th><th>Keterangan</th></tr>
+  <tr class="ok"><td>18</td><td>Mengekspor laporan absensi ke PDF</td><td>Buka Reports dengan data tersedia &rarr; tekan "Export PDF"</td><td>Filter: Mei 2026, kelas XI · RPL · A</td><td>PDF tersusun: halaman ringkasan rekap + satu halaman detail baru per siswa (tanggal, jam check-in &amp; check-out, status), lalu dialog bagikan/cetak tampil</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario sukses</td></tr>
+  <tr><td>19</td><td>Ekspor dibatalkan pada dialog berbagi</td><td>Tekan "Export PDF" &rarr; tutup dialog berbagi</td><td>Filter: Mei 2026</td><td>Aplikasi kembali ke halaman laporan tanpa error</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario gagal / dibatalkan</td></tr>
+</table>
+
+<h2>UC8 &mdash; Atur Pengaturan Aplikasi</h2>
+<table>
+  <tr><th>No</th><th>Deskripsi Pengujian</th><th>Langkah Uji</th><th>Data Uji</th><th>Hasil yang Diharapkan</th><th>Hasil Pengujian</th><th>Status</th><th>Keterangan</th></tr>
+  <tr class="ok"><td>20</td><td>Mengubah jam masuk sekolah</td><td>Buka Settings &rarr; tekan kartu "Clock In" &rarr; pilih jam &rarr; OK</td><td>Jam masuk baru: 07:15</td><td>Pengaturan tersimpan, nilai jam masuk diperbarui</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario sukses</td></tr>
+  <tr class="ok"><td>21</td><td>Mengaktifkan kelas yang dikenali terminal</td><td>Buka Settings &rarr; tekan kartu kelas untuk mengaktifkan</td><td>Kelas: "XI · RPL · A"</td><td>Kelas berstatus aktif, hanya siswa kelas itu yang dipindai saat absensi</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario sukses</td></tr>
+  <tr><td>22</td><td>Menonaktifkan semua kelas</td><td>Buka Settings &rarr; nonaktifkan seluruh kartu kelas</td><td>Tidak ada kelas aktif</td><td>Ringkasan menampilkan "No class enabled"; absensi memindai seluruh siswa</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario batas / edge case</td></tr>
+</table>
+
+<h2>UC9 &mdash; Hubungi Developer &amp; Backup Database</h2>
+<table>
+  <tr><th>No</th><th>Deskripsi Pengujian</th><th>Langkah Uji</th><th>Data Uji</th><th>Hasil yang Diharapkan</th><th>Hasil Pengujian</th><th>Status</th><th>Keterangan</th></tr>
+  <tr class="ok"><td>23</td><td>Menghubungi developer via tombol "Contact developer"</td><td>Buka menu admin &rarr; tekan tombol "Contact developer" di footer kiri</td><td>&mdash;</td><td>WhatsApp developer (+62 851-7822-6071) terbuka berisi pesan "halo developer, saya mengalami masalah dengan aplikasi absensi smk jaya buana"</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario sukses</td></tr>
+  <tr class="ok"><td>24</td><td>Backup database via tombol "Backup Database"</td><td>Buka menu admin &rarr; tekan tombol "Backup Database" di footer kanan &rarr; pilih aplikasi tujuan pada lembar berbagi</td><td>Database berisi 12 siswa &amp; data absensi</td><td>Berkas cadangan .sql terkini dibuat, lembar berbagi terbuka memuat berkas tersebut siap dikirim ke developer</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario sukses</td></tr>
+  <tr><td>25</td><td>Penanganan kegagalan saat membuat cadangan</td><td>Tekan "Backup Database" saat penyimpanan perangkat bermasalah</td><td>&mdash;</td><td>Muncul notifikasi "Gagal membuat cadangan database." dan aplikasi tetap berjalan normal</td><td>Sesuai harapan</td><td class="pass">PASS</td><td>Skenario gagal</td></tr>
+</table>
+
+</body>
+</html>

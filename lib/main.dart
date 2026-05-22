@@ -36,6 +36,12 @@ class JayaBuanaApp extends StatelessWidget {
       themeMode: ThemeMode.light,
       initialRoute: initialRoute,
       onGenerateRoute: AppRouter.onGenerate,
+      // Build the initial stack with exactly ONE route. Without this, a
+      // multi-segment initialRoute like "/camera" makes Flutter also push
+      // the "/" route underneath it (which falls through to RegistrationPage),
+      // so popUntil(isFirst) would land on registration instead of the camera.
+      onGenerateInitialRoutes: (name) =>
+          [AppRouter.onGenerate(RouteSettings(name: name))],
       navigatorObservers: [appRouteObserver],
     );
   }

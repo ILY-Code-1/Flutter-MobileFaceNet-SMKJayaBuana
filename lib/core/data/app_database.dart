@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
@@ -428,5 +429,67 @@ class AppDatabase {
       await tx.delete('settings');
       await tx.delete('admin');
     });
+  }
+
+  // ---------------- Backup ----------------
+
+  /// Produces a portable plain-SQL dump (schema + data) of the whole
+  /// database. The result can be saved as a `.sql` file and replayed
+  /// against an empty SQLite database to restore the install — used by the
+  /// "Contact developer" backup flow.
+  Future<String> exportSqlDump() async {
+    final d = await db;
+    final out = StringBuffer()
+      ..writeln('-- SQLite backup · Absensi SMK Jaya Buana')
+      ..writeln('-- Generated at ${DateTime.now().toIso8601String()}')
+      ..writeln('PRAGMA foreign_keys=OFF;')
+      ..writeln('BEGIN TRANSACTION;');
+
+    final tables = await d.rawQuery(
+      "SELECT name, sql FROM sqlite_master "
+      "WHERE type='table' AND name NOT LIKE 'sqlite_%' "
+      "AND name <> 'android_metadata' ORDER BY name",
+    );
+    for (final t in tables) {
+      final table = t['name'] as String;
+      final createSql = t['sql'] as String?;
+      out
+        ..writeln()
+        ..writeln('DROP TABLE IF EXISTS $table;');
+      if (createSql != null) out.writeln('$createSql;');
+      final rows = await d.query(table);
+      for (final row in rows) {
+        final cols = row.keys.toList();
+        final vals = cols.map((c) => _sqlLiteral(row[c])).join(', ');
+        out.writeln(
+            'INSERT INTO $table (${cols.join(', ')}) VALUES ($vals);');
+      }
+    }
+
+    final indexes = await d.rawQuery(
+      "SELECT sql FROM sqlite_master WHERE type='index' AND sql IS NOT NULL",
+    );
+    if (indexes.isNotEmpty) out.writeln();
+    for (final idx in indexes) {
+      out.writeln('${idx['sql']};');
+    }
+
+    out
+      ..writeln()
+      ..writeln('COMMIT;');
+    return out.toString();
+  }
+
+  /// Renders a single column value as a SQL literal for [exportSqlDump].
+  static String _sqlLiteral(Object? value) {
+    if (value == null) return 'NULL';
+    if (value is int || value is double) return '$value';
+    if (value is Uint8List) {
+      return "X'${value.map((b) => b.toRadixString(16).padLeft(2, '0')).join()}'";
+    }
+    if (value is List<int>) {
+      return "X'${value.map((b) => (b & 0xff).toRadixString(16).padLeft(2, '0')).join()}'";
+    }
+    return "'${value.toString().replaceAll("'", "''")}'";
   }
 }

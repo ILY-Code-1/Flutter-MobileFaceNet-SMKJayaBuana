@@ -295,6 +295,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 _TimeTile(
                   label: AppStrings.lastCheckOut,
                   value: _settings!.lastCheckOut,
+                  center: true,
                   onTap: () => _pickClockTime(
                       AppStrings.lastCheckOut,
                       _settings!.lastCheckOut,
@@ -630,10 +631,12 @@ class _TimeTile extends StatelessWidget {
   final String label;
   final String value;
   final VoidCallback onTap;
+  final bool center;
   const _TimeTile({
     required this.label,
     required this.value,
     required this.onTap,
+    this.center = false,
   });
   @override
   Widget build(BuildContext context) {
@@ -649,7 +652,8 @@ class _TimeTile extends StatelessWidget {
           border: Border.all(color: c.border, width: 1.2),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              center ? CrossAxisAlignment.center : CrossAxisAlignment.start,
           children: [
             Text(label,
                 style: TextStyle(
@@ -659,6 +663,10 @@ class _TimeTile extends StatelessWidget {
                     letterSpacing: 1.4)),
             const SizedBox(height: AppSpacing.x6),
             Row(
+              mainAxisSize: center ? MainAxisSize.min : MainAxisSize.max,
+              mainAxisAlignment: center
+                  ? MainAxisAlignment.center
+                  : MainAxisAlignment.start,
               children: [
                 Text(value,
                     style: TextStyle(

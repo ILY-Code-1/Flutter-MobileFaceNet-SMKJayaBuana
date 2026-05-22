@@ -1,0 +1,37 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+
+actor "Siswa" as Siswa
+actor "Admin" as Admin
+
+rectangle "Aplikasi Absensi Wajah SMK Jaya Buana" {
+  usecase "Registrasi Akun Admin" as UC1
+  usecase "Melakukan Absensi Wajah" as UC2
+  usecase "Masuk Menu Admin" as UC3
+  usecase "Kelola Data Siswa" as UC4
+  usecase "Kelola Data Kelas" as UC5
+  usecase "Lihat Laporan Absensi" as UC6
+  usecase "Ekspor Laporan PDF" as UC7
+  usecase "Atur Pengaturan Aplikasi" as UC8
+  usecase "Hubungi Developer & Backup Database" as UC9
+}
+
+Siswa --> UC2
+Admin --> UC1
+Admin --> UC3
+Admin --> UC4
+Admin --> UC5
+Admin --> UC6
+Admin --> UC8
+Admin --> UC9
+
+UC4 ..> UC3 : <<include>>
+UC5 ..> UC3 : <<include>>
+UC6 ..> UC3 : <<include>>
+UC8 ..> UC3 : <<include>>
+UC9 ..> UC3 : <<include>>
+UC7 ..> UC6 : <<extend>>
+
+@enduml

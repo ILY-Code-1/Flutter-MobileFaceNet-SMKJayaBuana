@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Acceptance Testing - Absensi Wajah SMK Jaya Buana</title>
+<style>
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #fbf8f1; color: #1f2533; margin: 0; padding: 32px; line-height: 1.55; }
+  h1 { color: #0b1a35; font-size: 25px; border-bottom: 3px solid #e8c547; padding-bottom: 10px; }
+  p { max-width: 1000px; }
+  .note { background: #fff; border: 1px solid #e3ddcb; border-radius: 8px; padding: 14px 18px; max-width: 1000px; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; background: #fff; font-size: 12.5px; }
+  th, td { border: 1px solid #d8d2bf; padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #0b1a35; color: #fff; }
+  tr:nth-child(even) td { background: #f4f0e4; }
+  .pass { color: #1f7a4a; font-weight: 700; text-align: center; }
+  .role { font-weight: 700; color: #8a4b8a; }
+  .sign { margin-top: 40px; max-width: 1000px; display: flex; justify-content: space-between; }
+  .sign div { text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>Dokumen User Acceptance Testing (UAT)<br>Aplikasi Absensi Wajah SMK Jaya Buana</h1>
+<p class="note">User Acceptance Testing memastikan aplikasi memenuhi kebutuhan pengguna akhir. Skenario ditulis dari sudut pandang pengguna. Role penguji terdiri atas <strong>Admin</strong> (operator tata usaha pengelola terminal) dan <strong>Siswa</strong> (pengguna absensi), sesuai aktor pada use case diagram. Setiap fitur utama diuji minimal satu skenario.</p>
+
+<table>
+  <tr>
+    <th>No</th><th>Skenario Pengujian</th><th>Role yang Menguji</th><th>Fitur yang Diuji</th><th>Langkah Pengujian</th><th>Ekspektasi Hasil</th><th>Status</th>
+  </tr>
+  <tr>
+    <td>1</td>
+    <td>Admin menyiapkan akun pada pemasangan pertama aplikasi</td>
+    <td class="role">Admin</td>
+    <td>Registrasi Akun Admin</td>
+    <td>Buka aplikasi pertama kali, isi username, buat PIN 6 digit, lalu konfirmasi PIN yang sama</td>
+    <td>Akun admin terbuat, data kelas &amp; siswa contoh tersedia, aplikasi langsung menampilkan layar kamera absensi</td>
+    <td class="pass">Pass</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>Siswa melakukan absensi masuk dengan memindai wajah</td>
+    <td class="role">Siswa</td>
+    <td>Melakukan Absensi Wajah (Check-in)</td>
+    <td>Berdiri menghadap kamera terminal, tekan "Mulai Scan", lalu pilih "Clock In" saat data dikenali</td>
+    <td>Wajah dikenali, nama &amp; kelas siswa tampil, jam masuk tersimpan, halaman sukses "Selamat datang" muncul</td>
+    <td class="pass">Pass</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>Siswa melakukan absensi pulang setelah jam pulang sekolah</td>
+    <td class="role">Siswa</td>
+    <td>Melakukan Absensi Wajah (Check-out)</td>
+    <td>Scan wajah setelah pukul 15:30, lalu pilih "Clock Out"</td>
+    <td>Jam pulang tersimpan, halaman sukses "Sampai jumpa" muncul</td>
+    <td class="pass">Pass</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>Siswa yang belum terdaftar mencoba absen</td>
+    <td class="role">Siswa</td>
+    <td>Melakukan Absensi Wajah (validasi)</td>
+    <td>Scan wajah yang belum pernah didaftarkan</td>
+    <td>Muncul pemberitahuan "Wajah tidak dikenali" dan absensi tidak tercatat</td>
+    <td class="pass">Pass</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td>Admin membuka menu pengelolaan dari layar kamera</td>
+    <td class="role">Admin</td>
+    <td>Masuk Menu Admin</td>
+    <td>Tekan ikon menu di layar kamera, masukkan PIN admin yang benar</td>
+    <td>Halaman menu admin (Students, Reports, Settings) terbuka</td>
+    <td class="pass">Pass</td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td>Admin mendaftarkan siswa baru beserta wajahnya</td>
+    <td class="role">Admin</td>
+    <td>Kelola Data Siswa</td>
+    <td>Buka Students, tekan "Enroll face", isi nama &amp; NIS, pilih kelas, unggah pas-foto, proses embedding, lalu Submit</td>
+    <td>Siswa baru tersimpan dan muncul pada daftar siswa siap dipakai untuk absensi</td>
+    <td class="pass">Pass</td>
+  </tr>
+  <tr>
+    <td>7</td>
+    <td>Admin mengoreksi data siswa yang keliru</td>
+    <td class="role">Admin</td>
+    <td>Kelola Data Siswa (ubah)</td>
+    <td>Buka Students, ketuk salah satu siswa, perbarui nama/kelas, lalu Submit</td>
+    <td>Perubahan data siswa tersimpan dan tampil pada daftar</td>
+    <td class="pass">Pass</td>
+  </tr>
+  <tr>
+    <td>8</td>
+    <td>Admin menambah kelas baru untuk tahun ajaran</td>
+    <td class="role">Admin</td>
+    <td>Kelola Data Kelas</td>
+    <td>Buka Settings, tekan "Add class", masukkan nama kelas, lalu Save</td>
+    <td>Kelas baru muncul pada daftar kelas dan dapat dipilih saat menambah siswa</td>
+    <td class="pass">Pass</td>
+  </tr>
+  <tr>
+    <td>9</td>
+    <td>Admin meninjau rekap kehadiran siswa per bulan</td>
+    <td class="role">Admin</td>
+    <td>Lihat Laporan Absensi</td>
+    <td>Buka Reports, atur filter kelas dan periode, amati tabel rekap</td>
+    <td>Rekap Hadir/Terlambat/Absen per siswa beserta persentase kehadiran ditampilkan dengan benar</td>
+    <td class="pass">Pass</td>
+  </tr>
+  <tr>
+    <td>10</td>
+    <td>Admin melihat rincian absensi seorang siswa</td>
+    <td class="role">Admin</td>
+    <td>Lihat Laporan Absensi (detail)</td>
+    <td>Pada halaman Reports, ketuk baris nama siswa</td>
+    <td>Dialog rincian absensi harian siswa tersebut tampil</td>
+    <td class="pass">Pass</td>
+  </tr>
+  <tr>
+    <td>11</td>
+    <td>Admin mengekspor laporan absensi untuk arsip sekolah</td>
+    <td class="role">Admin</td>
+    <td>Ekspor Laporan PDF</td>
+    <td>Pada halaman Reports, tekan "Export PDF", lalu bagikan atau simpan berkas</td>
+    <td>PDF terbentuk: halaman ringkasan rekap diikuti satu halaman detail per siswa berisi jam check-in &amp; check-out harian, rapi dan dapat dibagikan/dicetak</td>
+    <td class="pass">Pass</td>
+  </tr>
+  <tr>
+    <td>12</td>
+    <td>Admin mengatur jam sekolah dan kelas aktif terminal</td>
+    <td class="role">Admin</td>
+    <td>Atur Pengaturan Aplikasi</td>
+    <td>Buka Settings, ubah jam masuk/pulang, aktifkan kelas tertentu, ubah nama perangkat &amp; suara scan</td>
+    <td>Seluruh pengaturan tersimpan dan diterapkan pada proses absensi berikutnya</td>
+    <td class="pass">Pass</td>
+  </tr>
+  <tr>
+    <td>13</td>
+    <td>Admin melaporkan kendala aplikasi ke developer</td>
+    <td class="role">Admin</td>
+    <td>Hubungi Developer &amp; Backup Database</td>
+    <td>Buka menu admin, tekan tombol "Contact developer" di footer kiri</td>
+    <td>WhatsApp developer terbuka berisi pesan keluhan yang sudah terisi otomatis, siap dikirim</td>
+    <td class="pass">Pass</td>
+  </tr>
+  <tr>
+    <td>14</td>
+    <td>Admin mencadangkan database untuk dikirim ke developer</td>
+    <td class="role">Admin</td>
+    <td>Hubungi Developer &amp; Backup Database</td>
+    <td>Buka menu admin, tekan tombol "Backup Database" di footer kanan, lalu pilih aplikasi tujuan pada lembar berbagi</td>
+    <td>Aplikasi membuat berkas cadangan database (.sql) terkini lalu membuka lembar berbagi berisi berkas tersebut, siap dikirim ke developer</td>
+    <td class="pass">Pass</td>
+  </tr>
+</table>
+
+<div class="sign">
+  <div>Penguji (Admin / Tata Usaha)<br><br><br>(________________________)</div>
+  <div>Mengetahui (Pihak Sekolah)<br><br><br>(________________________)</div>
+  <div>Pengembang<br><br><br>(________________________)</div>
+</div>
+
+</body>
+</html>

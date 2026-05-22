@@ -1,0 +1,221 @@
+' == Sequence: Registrasi Akun Admin ==
+@startuml
+title Sequence: Registrasi Akun Admin
+actor Admin
+participant "RegistrationPage" as UI
+participant "AppDatabase" as DB
+participant "DbSeeder" as Seed
+
+Admin -> UI : Isi username & PIN 6 digit
+activate UI
+UI -> UI : Validasi PIN (PinValidator)
+UI -> DB : createAdmin(username, pin)
+activate DB
+DB --> UI : akun admin tersimpan
+deactivate DB
+UI -> Seed : seedIfEmpty()
+activate Seed
+Seed -> DB : insert kelas & siswa awal
+Seed --> UI : data awal selesai dibuat
+deactivate Seed
+UI --> Admin : Buka layar kamera absensi
+deactivate UI
+@enduml
+
+' == Sequence: Melakukan Absensi Wajah ==
+@startuml
+title Sequence: Melakukan Absensi Wajah
+actor Siswa
+participant "CameraIdlePage" as UI
+participant "FaceRecognitionService" as FR
+participant "AppDatabase" as DB
+
+Siswa -> UI : Tekan "Mulai Scan"
+activate UI
+UI -> FR : identifyFromFile(foto, kelasAktif)
+activate FR
+FR -> DB : listStudents(kelas aktif)
+DB --> FR : daftar siswa + embedding
+FR --> UI : FaceMatch (siswa, similarity)
+deactivate FR
+alt Wajah dikenali
+  UI -> Siswa : Tampilkan data & pilihan absensi
+  Siswa -> UI : Pilih Check-in / Check-out
+  UI -> DB : upsertCheckIn / updateCheckOut
+  DB --> UI : data absensi tersimpan
+  UI --> Siswa : Tampilkan halaman sukses
+else Tidak dikenali
+  UI --> Siswa : Tampilkan "Wajah tidak dikenali"
+end
+deactivate UI
+@enduml
+
+' == Sequence: Masuk Menu Admin ==
+@startuml
+title Sequence: Masuk Menu Admin
+actor Admin
+participant "PasswordGateSheet" as UI
+participant "AppDatabase" as DB
+participant "MenuPage" as Menu
+
+Admin -> UI : Masukkan PIN 6 digit
+activate UI
+UI -> DB : verifyPin(pin)
+activate DB
+DB --> UI : hasil verifikasi PIN
+deactivate DB
+alt PIN benar
+  UI -> Menu : buka menu admin
+  activate Menu
+  Menu --> Admin : Tampilkan menu admin
+  deactivate Menu
+else PIN salah
+  UI --> Admin : Tampilkan pesan "PIN salah"
+end
+deactivate UI
+@enduml
+
+' == Sequence: Kelola Data Siswa ==
+@startuml
+title Sequence: Kelola Data Siswa
+actor Admin
+participant "AddStudentPage" as UI
+participant "FaceRecognitionService" as FR
+participant "AppDatabase" as DB
+
+Admin -> UI : Isi data siswa & unggah pas-foto
+activate UI
+Admin -> UI : Tekan "Process embedding"
+UI -> FR : embedFromFile(foto)
+activate FR
+FR --> UI : vektor embedding wajah
+deactivate FR
+Admin -> UI : Tekan "Submit"
+UI -> DB : insertStudent / updateStudent
+activate DB
+DB --> UI : data siswa tersimpan
+deactivate DB
+UI --> Admin : Kembali ke daftar siswa
+deactivate UI
+@enduml
+
+' == Sequence: Kelola Data Kelas ==
+@startuml
+title Sequence: Kelola Data Kelas
+actor Admin
+participant "SettingsPage" as UI
+participant "AppDatabase" as DB
+
+Admin -> UI : Pilih tambah / ubah / hapus kelas
+activate UI
+alt Tambah / Ubah kelas
+  UI -> DB : insertClass / updateClass(nama)
+  activate DB
+  DB --> UI : data kelas tersimpan
+  deactivate DB
+else Hapus kelas
+  UI -> DB : deleteClass(id)
+  activate DB
+  DB --> UI : berhasil / ditolak (dipakai siswa)
+  deactivate DB
+end
+UI --> Admin : Perbarui daftar kelas
+deactivate UI
+@enduml
+
+' == Sequence: Lihat Laporan Absensi ==
+@startuml
+title Sequence: Lihat Laporan Absensi
+actor Admin
+participant "ReportsPage" as UI
+participant "AppDatabase" as DB
+participant "ReportAggregator" as Agg
+
+Admin -> UI : Atur filter kelas & periode
+activate UI
+UI -> DB : queryAttendance(filter)
+activate DB
+DB --> UI : baris data absensi
+deactivate DB
+UI -> Agg : summarize(baris absensi)
+activate Agg
+Agg --> UI : rekap per siswa
+deactivate Agg
+UI --> Admin : Tampilkan tabel rekap & persentase
+deactivate UI
+@enduml
+
+' == Sequence: Ekspor Laporan PDF ==
+@startuml
+title Sequence: Ekspor Laporan PDF
+actor Admin
+participant "ReportsPage" as UI
+participant "ReportPdf" as PDF
+participant "Layanan Berbagi" as Share
+
+Admin -> UI : Tekan "Export PDF"
+activate UI
+UI -> PDF : exportAndShare(judul, rekap)
+activate PDF
+PDF -> PDF : Susun dokumen PDF rekap
+PDF -> Share : Buka dialog bagikan / simpan
+activate Share
+Share --> Admin : Pilih bagikan atau cetak
+deactivate Share
+PDF --> UI : proses ekspor selesai
+deactivate PDF
+UI --> Admin : Kembali ke halaman laporan
+deactivate UI
+@enduml
+
+' == Sequence: Atur Pengaturan Aplikasi ==
+@startuml
+title Sequence: Atur Pengaturan Aplikasi
+actor Admin
+participant "SettingsPage" as UI
+participant "SettingsService" as SS
+participant "AppDatabase" as DB
+
+Admin -> UI : Ubah kelas aktif / jam / perangkat
+activate UI
+UI -> SS : save(AppSettings)
+activate SS
+SS -> DB : setSettings(map pengaturan)
+activate DB
+DB --> SS : pengaturan tersimpan
+deactivate DB
+SS --> UI : penyimpanan selesai
+deactivate SS
+UI --> Admin : Tampilkan pengaturan terbaru
+deactivate UI
+@enduml
+
+' == Sequence: Hubungi Developer & Backup Database ==
+@startuml
+title Sequence: Hubungi Developer & Backup Database
+actor Admin
+participant "MenuPage" as UI
+participant "DatabaseBackupService" as Backup
+participant "AppDatabase" as DB
+
+alt Contact developer
+  Admin -> UI : Tekan "Contact developer"
+  activate UI
+  UI --> Admin : Buka WhatsApp developer berisi pesan keluhan
+  deactivate UI
+else Backup Database
+  Admin -> UI : Tekan "Backup Database"
+  activate UI
+  UI -> Backup : writeSqlBackup()
+  activate Backup
+  Backup -> DB : exportSqlDump()
+  activate DB
+  DB --> Backup : skrip SQL basis data
+  deactivate DB
+  Backup --> UI : berkas .sql cadangan
+  deactivate Backup
+  UI -> UI : Buka lembar berbagi berkas
+  UI --> Admin : Kirim berkas cadangan ke developer
+  deactivate UI
+end
+@enduml

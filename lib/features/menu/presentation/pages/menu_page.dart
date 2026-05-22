@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/data/app_database.dart';
 import '../../../../core/data/app_settings.dart';
 import '../../../../core/data/models.dart';
+import '../../../../core/services/database_backup_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/jb_icons.dart';
@@ -219,7 +221,7 @@ class _MenuPageState extends State<MenuPage> {
                         ),
                 ),
                 const SizedBox(height: AppSpacing.x10),
-                const _ContactDeveloperFooter(),
+                const _MenuFooter(),
               ],
             ),
           ),
@@ -252,23 +254,107 @@ class _CloseButton extends StatelessWidget {
   }
 }
 
-class _ContactDeveloperFooter extends StatelessWidget {
-  const _ContactDeveloperFooter();
+class _MenuFooter extends StatefulWidget {
+  const _MenuFooter();
 
-  static const _waNumber = '6281398447822';
+  @override
+  State<_MenuFooter> createState() => _MenuFooterState();
+}
+
+class _MenuFooterState extends State<_MenuFooter> {
+  // Developer WhatsApp contact (+62 851-7822-6071).
+  static const _waNumber = '6285178226071';
   static const _waMessage =
       'halo developer, saya mengalami masalah dengan aplikasi absensi smk jaya buana';
 
-  Future<void> _openWhatsApp(BuildContext context) async {
+  bool _backingUp = false;
+
+  /// Opens the developer's WhatsApp chat pre-filled with a help message.
+  Future<void> _contactDeveloper() async {
+    final messenger = ScaffoldMessenger.of(context);
     final uri = Uri.parse(
         'https://wa.me/$_waNumber?text=${Uri.encodeComponent(_waMessage)}');
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open WhatsApp.')),
+    if (!ok) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Tidak dapat membuka WhatsApp.')),
       );
     }
   }
+
+  /// Backs up the database to a `.sql` file, then opens the share sheet so
+  /// the admin can send the backup to the developer.
+  Future<void> _backupDatabase() async {
+    if (_backingUp) return;
+    setState(() => _backingUp = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final backup = await DatabaseBackupService.instance.writeSqlBackup();
+      await Share.shareXFiles(
+        [XFile(backup.path, mimeType: 'application/sql')],
+        text: 'Backup database Absensi SMK Jaya Buana',
+        subject: 'Backup database · Absensi SMK Jaya Buana',
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Gagal membuat cadangan database.')),
+      );
+    } finally {
+      if (mounted) setState(() => _backingUp = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.jb;
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _FooterButton(
+                icon: Icons.support_agent,
+                label: 'Contact developer',
+                onTap: _contactDeveloper,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.x12),
+            Expanded(
+              child: _FooterButton(
+                icon: Icons.backup_outlined,
+                label: 'Backup Database',
+                busy: _backingUp,
+                onTap: _backupDatabase,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.x10),
+        Text(
+          AppStrings.appVersion,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: c.textFaint,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FooterButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool busy;
+  final VoidCallback onTap;
+  const _FooterButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.busy = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -278,10 +364,10 @@ class _ContactDeveloperFooter extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadius.lg),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        onTap: () => _openWhatsApp(context),
+        onTap: busy ? null : onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(
-              vertical: AppSpacing.x14, horizontal: AppSpacing.x18),
+              vertical: AppSpacing.x14, horizontal: AppSpacing.x12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(color: c.border, width: 1.2),
@@ -289,22 +375,26 @@ class _ContactDeveloperFooter extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.support_agent, size: 18, color: c.accent),
+              if (busy)
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: c.accent),
+                )
+              else
+                Icon(icon, size: 18, color: c.accent),
               const SizedBox(width: AppSpacing.x8),
-              Text(
-                'Contact developer',
-                style: TextStyle(
-                  color: c.text,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              Text(
-                ' · ${AppStrings.appVersion}',
-                style: TextStyle(
-                  color: c.textFaint,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: c.text,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ],

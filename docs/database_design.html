@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Desain Basis Data Firestore - Absensi Wajah SMK Jaya Buana</title>
+<style>
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #fbf8f1; color: #1f2533; margin: 0; padding: 32px; line-height: 1.6; }
+  h1 { color: #0b1a35; font-size: 26px; border-bottom: 3px solid #e8c547; padding-bottom: 10px; }
+  h2 { color: #0b1a35; font-size: 19px; margin-top: 36px; border-left: 5px solid #e8c547; padding-left: 12px; }
+  p { max-width: 980px; }
+  .note { background: #fff; border: 1px solid #e3ddcb; border-radius: 8px; padding: 14px 18px; max-width: 980px; }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; background: #fff; font-size: 14px; }
+  th, td { border: 1px solid #d8d2bf; padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #0b1a35; color: #fff; }
+  tr:nth-child(even) td { background: #f4f0e4; }
+  code { background: #eee7d2; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  pre.plantuml { background: #0b1a35; color: #e8e3d3; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+  ul.tree { list-style: none; }
+  ul.tree li { position: relative; padding: 3px 0 3px 18px; }
+  ul.tree li::before { content: "\2514\2500"; position: absolute; left: 0; color: #b59a2e; }
+  .col { color: #1f7a4a; font-weight: 600; }
+  .pk { color: #b59a2e; font-weight: 700; }
+  .docid { color: #8a4b8a; font-style: italic; }
+</style>
+</head>
+<body>
+
+<h1>Desain Basis Data NoSQL (Firebase Firestore)<br>Aplikasi Absensi Wajah SMK Jaya Buana</h1>
+<p class="note">Dokumen ini merancang struktur basis data <strong>Cloud Firestore</strong> untuk aplikasi absensi siswa berbasis pengenalan wajah (MobileFaceNet). Aplikasi bekerja sebagai terminal absensi: siswa memindai wajah untuk check-in / check-out, sedangkan admin mengelola siswa, kelas, laporan, dan pengaturan melalui menu yang dikunci PIN.</p>
+
+<h2>1. Strategi Pemodelan NoSQL</h2>
+<p>Desain ini menggunakan <strong>kombinasi strategi Referencing dan Embedding</strong>, dengan <em>Referencing sebagai strategi dominan</em>.</p>
+<p><strong>Referencing</strong> dipakai untuk relasi antar entitas yang tumbuh tanpa batas:</p>
+<ul>
+  <li>Koleksi <code>attendance</code> dipisahkan dari <code>students</code> karena setiap siswa menghasilkan satu dokumen absensi <em>setiap hari sekolah</em>. Jika absensi di-<em>embed</em> ke dalam dokumen siswa, ukuran dokumen akan terus membengkak hingga melewati batas 1 MB per dokumen Firestore. Maka tiap dokumen <code>attendance</code> hanya menyimpan <code>studentId</code> sebagai referensi.</li>
+  <li>Koleksi <code>students</code> menyimpan <code>classId</code> sebagai referensi ke koleksi <code>classes</code>, sehingga satu kelas (mis. <em>"XI · RPL · A"</em>) dapat dipakai banyak siswa tanpa duplikasi nama kelas.</li>
+</ul>
+<p><strong>Embedding</strong> dipakai untuk data berukuran tetap dan kecil yang selalu diakses bersama dokumen induknya:</p>
+<ul>
+  <li>Vektor <code>embedding</code> wajah (192 angka <em>float</em> hasil MobileFaceNet) di-<em>embed</em> langsung di dalam dokumen siswa, karena vektor ini berukuran tetap dan selalu dibutuhkan saat proses pencocokan wajah (<code>matchAgainst</code>).</li>
+  <li>Seluruh pengaturan terminal di-<em>embed</em> dalam satu dokumen <code>settings/app</code> (jam masuk, jam pulang, kelas aktif, nama perangkat, suara scan) karena jumlahnya tetap dan selalu dimuat sekaligus saat aplikasi dijalankan.</li>
+</ul>
+<p>Contoh konkret: ketika seorang siswa bernama <em>"Andini Pratiwi"</em> (NIS <em>2401001</em>) melakukan check-in, aplikasi membaca dokumen di <code>students</code> beserta vektor <code>embedding</code>-nya (embedding), lalu menulis satu dokumen baru di koleksi <code>attendance</code> yang merujuk ke <code>studentId</code> miliknya (referencing).</p>
+
+<h2>2. Struktur Koleksi (Collection Structure)</h2>
+<p>Lima koleksi tingkat atas. Pengaturan disimpan sebagai dokumen tunggal beridentitas tetap <code>app</code>.</p>
+<ul class="tree">
+  <li><strong>admin</strong> (koleksi) &mdash; akun admin terminal
+    <ul class="tree">
+      <li><span class="docid">{adminId}</span> &mdash; mis. <code>adm_01</code>
+        <ul class="tree">
+          <li><span class="col">username</span> : string &mdash; "operator-tu"</li>
+          <li><span class="col">pinHash</span> : string &mdash; SHA-256 dari PIN</li>
+          <li><span class="col">createdAt</span> : timestamp</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li><strong>classes</strong> (koleksi) &mdash; daftar kelas sekolah
+    <ul class="tree">
+      <li><span class="docid">{classId}</span> &mdash; mis. <code>cls_xi_rpl_a</code>
+        <ul class="tree">
+          <li><span class="col">name</span> : string &mdash; "XI · RPL · A" (unik)</li>
+          <li><span class="col">createdAt</span> : timestamp</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li><strong>students</strong> (koleksi) &mdash; siswa terdaftar beserta data wajah
+    <ul class="tree">
+      <li><span class="docid">{studentId}</span> &mdash; mis. <code>std_2401001</code>
+        <ul class="tree">
+          <li><span class="col">name</span> : string &mdash; "Andini Pratiwi"</li>
+          <li><span class="col">nis</span> : string &mdash; "2401001" (unik)</li>
+          <li><span class="col">classId</span> : string &mdash; referensi &rarr; classes/{classId}</li>
+          <li><span class="col">photoPath</span> : string &mdash; lokasi pas-foto</li>
+          <li><span class="col">embedding</span> : array&lt;number&gt; &mdash; 192 nilai float</li>
+          <li><span class="col">isDraft</span> : boolean &mdash; true bila belum lengkap</li>
+          <li><span class="col">createdAt</span> : timestamp</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li><strong>attendance</strong> (koleksi) &mdash; catatan absensi per siswa per hari
+    <ul class="tree">
+      <li><span class="docid">{attendanceId}</span> &mdash; mis. <code>std_2401001_2026-05-21</code>
+        <ul class="tree">
+          <li><span class="col">studentId</span> : string &mdash; referensi &rarr; students/{studentId}</li>
+          <li><span class="col">date</span> : string &mdash; "2026-05-21" (format YYYY-MM-DD)</li>
+          <li><span class="col">checkInTime</span> : string &mdash; "07:02:14"</li>
+          <li><span class="col">checkOutTime</span> : string &mdash; "15:35:40"</li>
+          <li><span class="col">status</span> : string &mdash; "present" | "late" | "absent"</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li><strong>settings</strong> (koleksi) &mdash; pengaturan terminal absensi
+    <ul class="tree">
+      <li><span class="docid">app</span> &mdash; dokumen tunggal konfigurasi
+        <ul class="tree">
+          <li><span class="col">activeClassIds</span> : array&lt;string&gt; &mdash; kelas yang dikenali terminal</li>
+          <li><span class="col">clockIn</span> : string &mdash; "07:00"</li>
+          <li><span class="col">clockOut</span> : string &mdash; "15:30"</li>
+          <li><span class="col">lastCheckOut</span> : string &mdash; "18:00"</li>
+          <li><span class="col">deviceName</span> : string &mdash; "Terminal 1"</li>
+          <li><span class="col">soundOnScan</span> : string &mdash; "soft_chime"</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+<p><strong>Relasi referensi:</strong> <code>students.classId</code> &rarr; <code>classes.{classId}</code> &nbsp;|&nbsp; <code>attendance.studentId</code> &rarr; <code>students.{studentId}</code>.</p>
+
+<h2>3. Logical Structure (Object Diagram)</h2>
+<p>Diagram objek berikut menggambarkan contoh dokumen nyata dari tiap koleksi serta tautan referensi antar dokumen.</p>
+<pre class="plantuml">
+@startuml
+object "admin/adm_01" as Admin {
+  username = "operator-tu"
+  pinHash = "9f86d081...e2d5"
+  createdAt = 2026-05-01T08:00:00
+}
+
+object "classes/cls_xi_rpl_a" as Kelas {
+  name = "XI · RPL · A"
+  createdAt = 2026-05-01T08:05:00
+}
+
+object "students/std_2401001" as Siswa {
+  name = "Andini Pratiwi"
+  nis = "2401001"
+  classId = "cls_xi_rpl_a"
+  photoPath = "/faces/student_174..._.jpg"
+  embedding = [0.041, -0.118, ... ]
+  isDraft = false
+  createdAt = 2026-05-01T08:10:00
+}
+
+object "attendance/std_2401001_2026-05-21" as Absensi {
+  studentId = "std_2401001"
+  date = "2026-05-21"
+  checkInTime = "07:02:14"
+  checkOutTime = "15:35:40"
+  status = "present"
+}
+
+object "settings/app" as Setting {
+  activeClassIds = ["cls_xi_rpl_a","cls_xi_mm_a"]
+  clockIn = "07:00"
+  clockOut = "15:30"
+  lastCheckOut = "18:00"
+  deviceName = "Terminal 1"
+  soundOnScan = "soft_chime"
+}
+
+Siswa --> Kelas : classId
+Absensi --> Siswa : studentId
+Setting --> Kelas : activeClassIds
+@enduml
+</pre>
+
+<h2>4. Spesifikasi Basis Data</h2>
+<p>Seluruh field dari kelima koleksi Firestore aplikasi Absensi Wajah SMK Jaya Buana.</p>
+<table>
+  <tr>
+    <th>No</th><th>Nama Field</th><th>Tipe Data</th><th>Koleksi</th><th>Deskripsi</th><th>Constraint / Index</th>
+  </tr>
+  <tr><td>1</td><td>adminId</td><td>string (Document ID)</td><td>admin</td><td>Identitas dokumen akun admin terminal</td><td>Document ID, unik</td></tr>
+  <tr><td>2</td><td>username</td><td>string</td><td>admin</td><td>Nama pengguna admin yang ditampilkan di menu</td><td>required</td></tr>
+  <tr><td>3</td><td>pinHash</td><td>string</td><td>admin</td><td>Hash SHA-256 dari PIN 6 digit untuk membuka menu admin</td><td>required</td></tr>
+  <tr><td>4</td><td>createdAt</td><td>timestamp</td><td>admin</td><td>Waktu akun admin dibuat</td><td>required</td></tr>
+  <tr><td>5</td><td>classId</td><td>string (Document ID)</td><td>classes</td><td>Identitas dokumen kelas</td><td>Document ID, unik</td></tr>
+  <tr><td>6</td><td>name</td><td>string</td><td>classes</td><td>Nama kelas, mis. "XI · RPL · A"</td><td>required, unique</td></tr>
+  <tr><td>7</td><td>createdAt</td><td>timestamp</td><td>classes</td><td>Waktu kelas ditambahkan</td><td>required</td></tr>
+  <tr><td>8</td><td>studentId</td><td>string (Document ID)</td><td>students</td><td>Identitas dokumen siswa</td><td>Document ID, unik</td></tr>
+  <tr><td>9</td><td>name</td><td>string</td><td>students</td><td>Nama lengkap siswa</td><td>required</td></tr>
+  <tr><td>10</td><td>nis</td><td>string</td><td>students</td><td>Nomor Induk Siswa</td><td>required, unique</td></tr>
+  <tr><td>11</td><td>classId</td><td>string</td><td>students</td><td>Referensi kelas siswa</td><td>required, indexed, FK &rarr; classes</td></tr>
+  <tr><td>12</td><td>photoPath</td><td>string</td><td>students</td><td>Lokasi pas-foto siswa yang diunggah</td><td>optional</td></tr>
+  <tr><td>13</td><td>embedding</td><td>array&lt;number&gt;</td><td>students</td><td>Vektor wajah 192 dimensi hasil MobileFaceNet</td><td>optional (null saat draft)</td></tr>
+  <tr><td>14</td><td>isDraft</td><td>boolean</td><td>students</td><td>Penanda data siswa belum lengkap (belum punya embedding)</td><td>required, default false</td></tr>
+  <tr><td>15</td><td>createdAt</td><td>timestamp</td><td>students</td><td>Waktu siswa didaftarkan</td><td>required</td></tr>
+  <tr><td>16</td><td>attendanceId</td><td>string (Document ID)</td><td>attendance</td><td>Identitas dokumen absensi, pola {studentId}_{date}</td><td>Document ID, unik</td></tr>
+  <tr><td>17</td><td>studentId</td><td>string</td><td>attendance</td><td>Referensi siswa pemilik absensi</td><td>required, indexed, FK &rarr; students</td></tr>
+  <tr><td>18</td><td>date</td><td>string</td><td>attendance</td><td>Tanggal absensi format YYYY-MM-DD</td><td>required, indexed</td></tr>
+  <tr><td>19</td><td>checkInTime</td><td>string</td><td>attendance</td><td>Jam masuk format HH:mm:ss</td><td>optional</td></tr>
+  <tr><td>20</td><td>checkOutTime</td><td>string</td><td>attendance</td><td>Jam pulang format HH:mm:ss</td><td>optional</td></tr>
+  <tr><td>21</td><td>status</td><td>string</td><td>attendance</td><td>Status kehadiran: present / late / absent</td><td>required</td></tr>
+  <tr><td>22</td><td>activeClassIds</td><td>array&lt;string&gt;</td><td>settings</td><td>Daftar kelas yang dikenali oleh terminal ini</td><td>optional (kosong = semua kelas)</td></tr>
+  <tr><td>23</td><td>clockIn</td><td>string</td><td>settings</td><td>Jam masuk sekolah, mis. "07:00"</td><td>required</td></tr>
+  <tr><td>24</td><td>clockOut</td><td>string</td><td>settings</td><td>Jam pulang sekolah, mis. "15:30"</td><td>required</td></tr>
+  <tr><td>25</td><td>lastCheckOut</td><td>string</td><td>settings</td><td>Batas akhir check-out sebelum dianggap absen</td><td>required</td></tr>
+  <tr><td>26</td><td>deviceName</td><td>string</td><td>settings</td><td>Nama perangkat terminal absensi</td><td>required</td></tr>
+  <tr><td>27</td><td>soundOnScan</td><td>string</td><td>settings</td><td>Kunci efek suara saat pemindaian wajah</td><td>required</td></tr>
+</table>
+
+</body>
+</html>

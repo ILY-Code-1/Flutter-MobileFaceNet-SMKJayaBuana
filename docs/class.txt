@@ -1,0 +1,63 @@
+@startuml
+title Class Diagram - Domain Model Aplikasi Absensi Wajah SMK Jaya Buana
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+class AdminAccount {
+  - id : int
+  - username : String
+  - pinHash : String
+  - createdAt : DateTime
+}
+
+class SchoolClass {
+  - id : int
+  - name : String
+  - createdAt : DateTime
+}
+
+class Student {
+  - id : int
+  - name : String
+  - nis : String
+  - classId : int
+  - photoPath : String
+  - embedding : List<double>
+  - isDraft : bool
+  - createdAt : DateTime
+  + initials() : String
+  + hue() : int
+}
+
+class AttendanceRecord {
+  - id : int
+  - studentId : int
+  - date : String
+  - checkInTime : String
+  - checkOutTime : String
+  - status : AttendanceStatus
+}
+
+enum AttendanceStatus {
+  present
+  late
+  absent
+  + code() : String
+  + label() : String
+}
+
+class AppSettings {
+  - activeClassIds : List<int>
+  - clockIn : String
+  - clockOut : String
+  - lastCheckOut : String
+  - deviceName : String
+  - soundOnScan : String
+}
+
+SchoolClass "1" o-- "0..*" Student : memiliki >
+Student "1" *-- "0..*" AttendanceRecord : mencatat >
+AttendanceRecord "0..*" --> "1" AttendanceStatus : berstatus >
+AppSettings "1" --> "0..*" SchoolClass : mengaktifkan >
+
+@enduml

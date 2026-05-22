@@ -30,6 +30,7 @@ class _ReportsPageState extends State<ReportsPage> {
   bool _loading = true;
   bool _exporting = false;
   StudentSummaryList? _summary;
+  List<Map<String, Object?>> _rows = const [];
 
   @override
   void initState() {
@@ -62,6 +63,7 @@ class _ReportsPageState extends State<ReportsPage> {
     setState(() {
       _classes = classes;
       _summary = summary;
+      _rows = rows;
       _loading = false;
     });
   }
@@ -258,6 +260,7 @@ class _ReportsPageState extends State<ReportsPage> {
         title:
             'Attendance · ${_classFilterLabel.toUpperCase()} · ${_filterScopeLabel()}',
         summary: _summary!,
+        rows: _rows,
       );
     } catch (e) {
       if (!mounted) return;
@@ -712,32 +715,36 @@ class _RecapCard extends StatelessWidget {
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1.2)),
           const SizedBox(height: AppSpacing.x6),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text('$value',
-                  style: TextStyle(
-                      color: c.text,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900)),
-              const SizedBox(width: AppSpacing.x6),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: 0.13),
-                    borderRadius: BorderRadius.circular(99),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text('$value',
+                    style: TextStyle(
+                        color: c.text,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900)),
+                const SizedBox(width: AppSpacing.x6),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: accentColor.withValues(alpha: 0.13),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Text(badge,
+                        style: TextStyle(
+                            color: accentColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900)),
                   ),
-                  child: Text(badge,
-                      style: TextStyle(
-                          color: accentColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900)),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
