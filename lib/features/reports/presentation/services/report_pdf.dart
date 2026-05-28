@@ -69,8 +69,10 @@ class ReportPdf {
           _summaryTable(summary),
           pw.SizedBox(height: 14),
           pw.Text(
-            'Only completed (checked-out) attendance is included. '
-            'Per-student daily check-in / check-out details follow on the next pages.',
+            'Hadir / Terlambat = student came in; Absen = no check-in that '
+            'day. A "*" in the check-out column means the time was filled '
+            'automatically by the system. Per-student daily check-in / '
+            'check-out details follow on the next pages.',
             style: const pw.TextStyle(color: _muted, fontSize: 9),
           ),
         ],
@@ -98,11 +100,20 @@ class ReportPdf {
             pw.SizedBox(height: 8),
             if (detail.isEmpty)
               pw.Text(
-                'No completed attendance records in this period.',
+                'No attendance records in this period.',
                 style: const pw.TextStyle(color: _muted, fontSize: 10),
               )
             else
               _detailTable(detail),
+            if (detail
+                .any((r) => ((r['auto_checkout'] as int?) ?? 0) == 1)) ...[
+              pw.SizedBox(height: 8),
+              pw.Text(
+                '* check-out filled automatically at the configured '
+                'last check-out time (student forgot to scan out).',
+                style: const pw.TextStyle(color: _muted, fontSize: 9),
+              ),
+            ],
           ],
         ),
       );
@@ -317,12 +328,14 @@ class ReportPdf {
         : code == 'late'
             ? 'Terlambat'
             : 'Absen';
+    final auto = ((r['auto_checkout'] as int?) ?? 0) == 1;
+    final outText = _hm(r['check_out_time'] as String?);
     return pw.TableRow(
       children: [
         _td('$no', align: pw.TextAlign.center),
         _td(r['date'] as String? ?? '—'),
         _td(_hm(r['check_in_time'] as String?), align: pw.TextAlign.center),
-        _td(_hm(r['check_out_time'] as String?), align: pw.TextAlign.center),
+        _td(auto ? '$outText *' : outText, align: pw.TextAlign.center),
         _td(label, color: color, align: pw.TextAlign.center, bold: true),
       ],
     );

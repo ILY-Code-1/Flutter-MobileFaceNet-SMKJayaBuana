@@ -68,6 +68,7 @@ entity "ABSENSI" as absensi {
   check_in_time : TEXT
   check_out_time : TEXT
   + status : TEXT &lt;&lt;NN&gt;&gt;
+  + auto_checkout : INTEGER &lt;&lt;NN&gt;&gt;
 }
 
 entity "PENGATURAN" as pengaturan {
@@ -127,6 +128,7 @@ class "absensi" &lt;&lt;Table&gt;&gt; {
   - check_in_time : TEXT
   - check_out_time : TEXT
   - status : TEXT
+  - auto_checkout : INTEGER
 }
 
 class "pengaturan" &lt;&lt;Table&gt;&gt; {
@@ -179,6 +181,7 @@ class "absensi" &lt;&lt;Table&gt;&gt; {
   - check_in_time : TEXT
   - check_out_time : TEXT
   - status : TEXT
+  - auto_checkout : INTEGER
 }
 
 class "pengaturan" &lt;&lt;Table&gt;&gt; {
@@ -230,9 +233,10 @@ siswa "1" --> "0..*" absensi : mencatat
   <tr><td>1</td><td>id</td><td>INTEGER</td><td>&mdash;</td><td class="yes">PK</td><td class="no">&mdash;</td><td>NOT NULL</td><td>AUTOINCREMENT</td><td>Identitas unik catatan absensi</td></tr>
   <tr><td>2</td><td>siswa_id</td><td>INTEGER</td><td>&mdash;</td><td class="no">&mdash;</td><td class="yes">FK &rarr; siswa.id</td><td>NOT NULL</td><td>&mdash;</td><td>Siswa pemilik catatan absensi</td></tr>
   <tr><td>3</td><td>tanggal</td><td>TEXT</td><td>10</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NOT NULL</td><td>&mdash;</td><td>Tanggal absensi (YYYY-MM-DD); unik bersama siswa_id</td></tr>
-  <tr><td>4</td><td>check_in_time</td><td>TEXT</td><td>8</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NULL</td><td>NULL</td><td>Jam masuk (HH:mm:ss)</td></tr>
-  <tr><td>5</td><td>check_out_time</td><td>TEXT</td><td>8</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NULL</td><td>NULL</td><td>Jam pulang (HH:mm:ss)</td></tr>
+  <tr><td>4</td><td>check_in_time</td><td>TEXT</td><td>8</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NULL</td><td>NULL</td><td>Jam masuk (HH:mm:ss). Null untuk baris ber-status 'absent' hasil auto-finalize.</td></tr>
+  <tr><td>5</td><td>check_out_time</td><td>TEXT</td><td>8</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NULL</td><td>NULL</td><td>Jam pulang (HH:mm:ss). Diisi otomatis dengan last_check_out_time bila auto_checkout = 1.</td></tr>
   <tr><td>6</td><td>status</td><td>TEXT</td><td>10</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NOT NULL</td><td>&mdash;</td><td>Status kehadiran: present / late / absent</td></tr>
+  <tr><td>7</td><td>auto_checkout</td><td>INTEGER</td><td>1</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td>NOT NULL</td><td>0</td><td>Flag bahwa check_out_time diisi otomatis oleh sistem (siswa hadir tapi lupa scan pulang). 1 = auto, 0 = manual / absent.</td></tr>
 </table>
 
 <table>

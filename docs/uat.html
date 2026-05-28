@@ -65,6 +65,24 @@
     <td class="pass">Pass</td>
   </tr>
   <tr>
+    <td>4a</td>
+    <td>Sistem menyelesaikan absensi siswa yang lupa check-out</td>
+    <td class="role">Siswa</td>
+    <td>Auto-Finalize (otomatis sistem)</td>
+    <td>Siswa check-in pagi, lupa scan pulang. Setelah jam 18:00 atau keesokan harinya, admin buka halaman Reports.</td>
+    <td>Catatan harian siswa tersebut sudah lengkap di laporan: jam masuk asli + jam pulang otomatis 18:00 dengan tanda ⚠️ (di PDF: asterisk <code>*</code>). Status tetap Hadir / Terlambat sesuai jam check-in.</td>
+    <td class="pass">Pass</td>
+  </tr>
+  <tr>
+    <td>4b</td>
+    <td>Sistem mencatat siswa yang tidak datang ke sekolah</td>
+    <td class="role">Admin</td>
+    <td>Auto-Finalize (otomatis sistem)</td>
+    <td>Seorang siswa tidak melakukan scan apapun sepanjang hari kerja. Admin buka Reports setelah jam 18:00.</td>
+    <td>Siswa tersebut muncul di kolom <strong>Absen</strong> pada rekap dan tabel per-siswa, bukan hilang dari laporan.</td>
+    <td class="pass">Pass</td>
+  </tr>
+  <tr>
     <td>5</td>
     <td>Admin membuka menu pengelolaan dari layar kamera</td>
     <td class="role">Admin</td>

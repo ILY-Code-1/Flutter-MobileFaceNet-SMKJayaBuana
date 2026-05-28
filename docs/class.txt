@@ -36,6 +36,7 @@ class AttendanceRecord {
   - checkInTime : String
   - checkOutTime : String
   - status : AttendanceStatus
+  - autoCheckout : bool
 }
 
 enum AttendanceStatus {

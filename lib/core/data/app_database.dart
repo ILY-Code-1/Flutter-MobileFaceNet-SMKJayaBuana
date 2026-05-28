@@ -11,15 +11,23 @@ import 'models.dart';
 
 /// Single source-of-truth wrapper around the SQLite database.
 ///
-/// Schema (v2):
+/// Schema (v3):
 ///   admin       — at most 1 row, stores the hashed admin PIN
 ///   classes     — list of school classes (name unique)
 ///   students    — enrolled students with face embedding (BLOB)
-///   attendance  — per-student per-day check-in / check-out record
+///   attendance  — per-student per-day check-in / check-out record, plus
+///                 an `auto_checkout` flag (INTEGER NOT NULL DEFAULT 0)
+///                 that audits rows whose `check_out_time` was filled by
+///                 [AttendanceFinalizerService] instead of a real scan
 ///   settings    — generic key/value bag for active classes, school hours…
 ///
-/// v2 dropped the unused `password_hash` column from `admin` and added
-/// indexes on the hot foreign-key / date columns.
+/// Migration history:
+///   v2 dropped the unused `password_hash` column from `admin` and added
+///   indexes on the hot foreign-key / date columns.
+///   v3 added the `auto_checkout` column on `attendance` via a
+///   non-destructive `ALTER TABLE` so existing v2 installs keep their
+///   data; the migration ladder only rebuilds from scratch for pre-v2
+///   (dev-stage) installs.
 class AppDatabase {
   AppDatabase._();
   static final AppDatabase instance = AppDatabase._();
@@ -28,7 +36,7 @@ class AppDatabase {
   Future<Database> get db async => _db ??= await _open();
 
   static const _kDbName = 'smk_jaya_buana.db';
-  static const _kDbVersion = 2;
+  static const _kDbVersion = 3;
 
   Future<Database> _open() async {
     final dir = await getApplicationDocumentsDirectory();
@@ -38,11 +46,20 @@ class AppDatabase {
       version: _kDbVersion,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: (db, _) async => _createSchema(db),
-      onUpgrade: (db, _, _) async {
-        // Dev-stage migration: rebuild from scratch. The admin must
-        // re-register (no password anymore) and the seeder repopulates.
-        await _dropSchema(db);
-        await _createSchema(db);
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // Pre-v2 (dev-stage) installs: rebuild from scratch.
+          await _dropSchema(db);
+          await _createSchema(db);
+          return;
+        }
+        if (oldVersion < 3) {
+          // v2 -> v3: add the auto_checkout flag without losing data.
+          await db.execute(
+            'ALTER TABLE attendance ADD COLUMN auto_checkout '
+            'INTEGER NOT NULL DEFAULT 0',
+          );
+        }
       },
     );
   }
@@ -93,6 +110,7 @@ class AppDatabase {
         check_in_time  TEXT,
         check_out_time TEXT,
         status         TEXT NOT NULL,
+        auto_checkout  INTEGER NOT NULL DEFAULT 0,
         UNIQUE (student_id, date),
         FOREIGN KEY (student_id) REFERENCES students(id)
       );
@@ -353,12 +371,60 @@ class AppDatabase {
         where: 'id = ?', whereArgs: [id]);
   }
 
+  /// Inserts an "absent" placeholder for a student on a given day.
+  /// Idempotent: relies on the UNIQUE(student_id, date) constraint to skip
+  /// rows that already exist for that pair.
+  Future<int> insertAbsentRecord({
+    required int studentId,
+    required DateTime day,
+  }) async {
+    final d = await db;
+    final iso = _ymd(day);
+    return d.insert(
+      'attendance',
+      {
+        'student_id': studentId,
+        'date': iso,
+        'check_in_time': null,
+        'check_out_time': null,
+        'status': AttendanceStatus.absent.code,
+        'auto_checkout': 0,
+      },
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
+  }
+
+  /// Fills `check_out_time` on a student/day row that has a check-in but
+  /// never received a manual check-out, and flips `auto_checkout` to 1.
+  /// Idempotent: the WHERE clause makes this a no-op once the row is
+  /// already finalized (either manually or by a previous run).
+  Future<int> autoFinalizeCheckout({
+    required int studentId,
+    required DateTime day,
+    required String time,
+  }) async {
+    final d = await db;
+    final iso = _ymd(day);
+    return d.update(
+      'attendance',
+      {'check_out_time': time, 'auto_checkout': 1},
+      where:
+          'student_id = ? AND date = ? AND check_in_time IS NOT NULL AND check_out_time IS NULL',
+      whereArgs: [studentId, iso],
+    );
+  }
+
   /// Returns attendance rows joined with student/class info, filtered by an
   /// optional date prefix (e.g. "2026", "2026-05", "2026-05-19").
+  ///
+  /// Defaults to `onlyCompleted: false` so that absent rows (no check-in)
+  /// and rows finalized by the auto-checkout routine both reach the report
+  /// pipeline. Set it to `true` only for legacy "complete attendance only"
+  /// views.
   Future<List<Map<String, Object?>>> queryAttendance({
     String? datePrefix,
     int? classId,
-    bool onlyCompleted = true,
+    bool onlyCompleted = false,
   }) async {
     final d = await db;
     final where = <String>[];

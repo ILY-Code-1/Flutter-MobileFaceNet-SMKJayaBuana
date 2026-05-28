@@ -57,7 +57,7 @@ lib/
 │   ├── constants/                             # app-wide strings & asset names
 │   ├── theme/                                 # tokens, light/dark theme
 │   ├── data/
-│   │   ├── app_database.dart                  # all SQLite CRUD (schema v2)
+│   │   ├── app_database.dart                  # all SQLite CRUD (schema v3)
 │   │   ├── app_settings.dart                  # typed settings + service
 │   │   ├── models.dart                        # Admin, SchoolClass, Student…
 │   │   └── seed.dart                          # first-run dummy data
@@ -65,7 +65,8 @@ lib/
 │   │   ├── face_recognition_service.dart      # ML Kit + MobileFaceNet pipeline
 │   │   ├── sound_service.dart                 # plays scan-feedback sounds
 │   │   ├── device_info_service.dart           # auto-detect device name
-│   │   └── database_backup_service.dart       # writes the .sql backup file
+│   │   ├── database_backup_service.dart       # writes the .sql backup file
+│   │   └── attendance_finalizer_service.dart  # auto-marks Absent + auto-checks-out
 │   ├── utils/
 │   │   ├── time_utils.dart                    # status rules from clock-in/out
 │   │   └── pin_validator.dart                 # 6-digit PIN rules
@@ -249,13 +250,31 @@ on the camera image stream just to draw the face box — it does not embed.
 | Scans **after `clockIn + 1h`** | check-in saved, status = **late** |
 | Already checked-in | check-in button disabled |
 | Scans at/after `clockOut` | check-out button enabled |
-| No check-out before `lastCheckOut` | record stays incomplete → **absent** in reports |
+| **No check-in at all** on a school day | **absent** row inserted by auto-finalize → shows up in the A column |
+| **Checked in but no check-out** by `lastCheckOut` | `check_out_time` auto-filled with `lastCheckOut`, row flagged `auto_checkout = 1`; status stays **present** / **late** |
 
-Reports only count **completed** rows (both timestamps present).
+**"Absent" now means the student did not come to school** (no check-in
+record at all). Forgetting to scan out is **not** absent — it is "I came in
+but the terminal auto-closed my day", surfaced with a small ⚠️ (asterisk
+`*` in the PDF) next to the auto-filled check-out time.
+
+This shift is implemented by the **auto-finalize** routine
+([`attendance_finalizer_service.dart`](lib/core/services/attendance_finalizer_service.dart)),
+which runs fire-and-forget at app launch and again (awaited) whenever the
+Reports page is loaded. It walks every past weekday in the enrolment
+window, inserts `absent` placeholders for students with no record, and
+auto-checks-out students who forgot — idempotent thanks to the
+`UNIQUE(student_id, date)` constraint and a `WHERE check_out_time IS NULL`
+guard on the update.
+
+A full breakdown of the time-to-status mapping (with a visual timeline,
+the auto-finalize section, and concrete scenarios using real seeded
+students) lives in
+[`docs/attendance_time_rules.html`](docs/attendance_time_rules.html).
 
 ## Database schema
 
-Full DDL + sample rows: [`backup_db.sql`](backup_db.sql). Summary (**v2**):
+Full DDL + sample rows: [`backup_db.sql`](backup_db.sql). Summary (**v3**):
 
 ```
 admin       (id, username, pin_hash, created_at)          -- no password
@@ -264,6 +283,7 @@ students    (id, name, nis UNIQUE, class_id → classes.id,
              photo_path, embedding BLOB, is_draft, created_at)
 attendance  (id, student_id → students.id, date,
              check_in_time, check_out_time, status,
+             auto_checkout,
              UNIQUE (student_id, date))
 settings    (key PRIMARY KEY, value)
 
@@ -274,9 +294,12 @@ Embeddings are the raw little-endian bytes of a `Float32List(192)` (768 bytes).
 The `settings` table keeps small values as strings, e.g.
 `active_class_ids = "1,2,5"`, `clock_in_time = "07:00"`.
 
-The database is at version **2**. v2 dropped the unused `password_hash`
-column and added the three indexes. Upgrading an existing install rebuilds the
-schema from scratch (the admin re-registers — no password anymore).
+The database is at version **3**. v3 added the `auto_checkout INTEGER NOT
+NULL DEFAULT 0` column to `attendance` (used by the auto-finalize routine
+described in [Attendance logic](#attendance-logic-status-rules)). The
+migration ladder applies a non-destructive `ALTER TABLE` for v2 → v3, so
+production v2 data is preserved. Pre-v2 installs (dev-stage) still rebuild
+from scratch.
 
 A full `.sql` dump of the **live** database (schema + every row, with `BLOB`
 embeddings hex-encoded as `X'…'`) can be produced on demand by

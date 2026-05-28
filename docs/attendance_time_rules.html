@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mekanisme Jam Absensi - Absensi Wajah SMK Jaya Buana</title>
+<style>
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #fbf8f1; color: #1f2533; margin: 0; padding: 32px; line-height: 1.6; }
+  h1 { color: #0b1a35; font-size: 26px; border-bottom: 3px solid #e8c547; padding-bottom: 10px; }
+  h2 { color: #0b1a35; font-size: 18px; margin-top: 34px; border-left: 5px solid #e8c547; padding-left: 12px; }
+  h3 { color: #0b1a35; font-size: 15px; margin-top: 22px; }
+  p { max-width: 1000px; }
+  .note { background: #fff; border: 1px solid #e3ddcb; border-radius: 8px; padding: 14px 18px; max-width: 1000px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; background: #fff; font-size: 13px; }
+  th, td { border: 1px solid #d8d2bf; padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #0b1a35; color: #fff; }
+  tr:nth-child(even) td { background: #f4f0e4; }
+  code { background: #eee7d2; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 800; letter-spacing: 0.4px; color: #fff; }
+  .b-hadir { background: #1f7a4a; }
+  .b-late  { background: #b8732c; }
+  .b-absen { background: #b0344a; }
+  .b-info  { background: #0b1a35; }
+
+  /* Timeline */
+  .timeline { display: flex; gap: 2px; margin: 14px 0 6px 0; max-width: 1000px; border-radius: 6px; overflow: hidden; }
+  .seg { padding: 12px 10px; color: #fff; font-size: 12px; font-weight: 700; text-align: center; line-height: 1.35; }
+  .seg.present  { background: #1f7a4a; }
+  .seg.late     { background: #b8732c; }
+  .seg.checkout { background: #2c5fb8; }
+  .seg.cutoff   { background: #b0344a; }
+  .timeline-axis { display: flex; gap: 2px; max-width: 1000px; margin-bottom: 24px; font-size: 11px; color: #5a6584; font-weight: 700; }
+  .timeline-axis div { padding: 4px 6px; text-align: center; }
+  .formula { background: #0b1a35; color: #e8e3d3; padding: 12px 16px; border-radius: 8px; font-family: Consolas, monospace; font-size: 13px; display: inline-block; }
+</style>
+</head>
+<body>
+
+<h1>Mekanisme Jam Absensi<br>Aplikasi Absensi Wajah SMK Jaya Buana</h1>
+<p class="note">Dokumen ini menjelaskan bagaimana aplikasi menentukan <strong>status kehadiran</strong> seorang siswa berdasarkan <strong>jam ia memindai wajahnya</strong>. Tiga ambang waktu (<em>clock-in, clock-out, last check-out</em>) dikonfigurasi melalui menu <em>Settings &rarr; School hours</em> dan berlaku untuk semua siswa.</p>
+
+<h2>1. Konfigurasi Waktu Default</h2>
+<p>Saat aplikasi pertama kali dijalankan, tiga ambang waktu berikut sudah terisi sebagai default. Admin dapat mengubahnya kapan saja melalui menu <em>Settings &rarr; 02 · SCHEDULE</em>.</p>
+<table>
+  <tr><th>Kunci Pengaturan</th><th>Label di UI</th><th>Default</th><th>Fungsi</th></tr>
+  <tr><td><code>clock_in_time</code></td><td>CLOCK-IN</td><td><strong>07:00</strong></td><td>Jam masuk sekolah. Menjadi titik nol penentuan status Hadir / Terlambat.</td></tr>
+  <tr><td><code>clock_out_time</code></td><td>CLOCK-OUT</td><td><strong>15:30</strong></td><td>Jam paling awal siswa boleh menekan tombol <em>Clock Out</em>.</td></tr>
+  <tr><td><code>last_check_out_time</code></td><td>LAST CHECK-OUT</td><td><strong>18:00</strong></td><td>Batas akhir harian. Setelah jam ini sistem menjalankan <em>auto-finalize</em>: siswa yang sudah check-in tapi lupa check-out dibubuhi <code>check_out_time</code> otomatis dengan flag <code>auto_checkout</code>, dan siswa yang tidak punya catatan sama sekali disisipi baris ber-status <code>absent</code>.</td></tr>
+</table>
+
+<h2>2. Aturan Penentuan Status Check-In</h2>
+<p>Saat siswa berhasil dikenali dan menekan <strong>Clock In</strong>, aplikasi membandingkan waktu sekarang dengan <em>clock-in + 1 jam</em> (toleransi keterlambatan).</p>
+<p><span class="formula">lateThreshold = clockIn + 1 jam</span></p>
+<table>
+  <tr><th>Kondisi Waktu Scan</th><th>Status Tersimpan</th><th>Catatan</th></tr>
+  <tr><td><code>now &lt; lateThreshold</code></td><td><span class="badge b-hadir">HADIR</span></td><td>Siswa datang tepat waktu (dalam toleransi 1 jam sejak jam masuk).</td></tr>
+  <tr><td><code>now &ge; lateThreshold</code></td><td><span class="badge b-late">TERLAMBAT</span></td><td>Siswa terlambat. Tetap dicatat hadir di sekolah, tetapi statusnya <em>late</em>.</td></tr>
+</table>
+<p>Dengan default <code>clock_in_time = 07:00</code>, batas keterlambatan jatuh pada <strong>08:00</strong>. Ini sesuai aturan SMK Jaya Buana: <em>"di bawah jam 7 sampai sebelum jam 8 = hadir, di atas jam 8 pagi = terlambat"</em>.</p>
+
+<h2>3. Aturan Check-Out</h2>
+<p>Tombol <strong>Clock Out</strong> baru aktif <strong>pada atau setelah</strong> jam <code>clock_out_time</code>. Tombol akan tetap dinonaktifkan jika siswa belum check-in pada hari itu.</p>
+<table>
+  <tr><th>Kondisi Waktu Scan</th><th>Tombol Clock-Out</th><th>Hasil</th></tr>
+  <tr><td><code>now &lt; clockOut</code></td><td>Nonaktif (abu-abu)</td><td>Bila ditekan paksa, muncul pesan <em>"Check-out is only open after the configured clock-out time."</em></td></tr>
+  <tr><td><code>now &ge; clockOut</code></td><td>Aktif</td><td>Jam pulang tersimpan ke kolom <code>check_out_time</code>; catatan absensi dianggap <strong>lengkap</strong>.</td></tr>
+  <tr><td>Belum check-out sampai <code>now &gt; lastCheckOut</code> &mdash; ADA check-in</td><td>&mdash;</td><td><em>Auto-finalize</em> mengisi <code>check_out_time</code> = jam <code>lastCheckOut</code> dan menandai <code>auto_checkout = 1</code>. Status tetap <span class="badge b-hadir">HADIR</span> atau <span class="badge b-late">TERLAMBAT</span> (sesuai jam check-in). Lihat <a href="#auto-finalize">Section 8</a>.</td></tr>
+  <tr><td>Belum check-out sampai <code>now &gt; lastCheckOut</code> &mdash; TIDAK ADA check-in</td><td>&mdash;</td><td><em>Auto-finalize</em> menyisipkan baris baru: <code>status = 'absent'</code>, <code>check_in_time = NULL</code>, <code>check_out_time = NULL</code>. Siswa muncul di kolom <span class="badge b-absen">ABSEN</span> pada laporan.</td></tr>
+</table>
+
+<h2>4. Garis Waktu Visual (Default 07:00 / 15:30 / 18:00)</h2>
+<div class="timeline">
+  <div class="seg present"  style="flex: 7">  ≤ 07:00<br>Bisa Check-In<br><strong>HADIR</strong>     </div>
+  <div class="seg present"  style="flex: 1">  07:00–08:00<br>Check-In<br><strong>HADIR</strong>     </div>
+  <div class="seg late"     style="flex: 7.5"> 08:00–15:30<br>Check-In<br><strong>TERLAMBAT</strong> </div>
+  <div class="seg checkout" style="flex: 2.5"> 15:30–18:00<br>Check-Out aktif                       </div>
+  <div class="seg cutoff"   style="flex: 1">   ≥ 18:00<br>Auto-finalize<br>(lupa: auto-checkout · tidak datang: ABSEN)</div>
+</div>
+<div class="timeline-axis">
+  <div style="flex: 7">    00:00 </div>
+  <div style="flex: 1">    07:00 </div>
+  <div style="flex: 7.5">  08:00 </div>
+  <div style="flex: 2.5">  15:30 </div>
+  <div style="flex: 1">    18:00 </div>
+</div>
+<p>Hijau = status <em>Hadir</em> akan tersimpan saat check-in. Oranye = status <em>Terlambat</em>. Biru = jendela waktu di mana siswa dapat menekan <em>Clock Out</em>. Merah = batas akhir; setelah jam ini sistem menjalankan <em>auto-finalize</em>: siswa yang lupa check-out diisi otomatis (status tetap, flag <code>auto_checkout</code> aktif), siswa yang tidak datang sama sekali disisipi baris ber-status <strong>Absen</strong>.</p>
+
+<h2>5. Contoh Skenario Nyata</h2>
+<p>Contoh berikut menggunakan jadwal default (clock-in 07:00, clock-out 15:30, last check-out 18:00) dan nama siswa dari data awal aplikasi.</p>
+<table>
+  <tr>
+    <th>Siswa</th>
+    <th>Jam Scan Check-In</th>
+    <th>Status Check-In</th>
+    <th>Jam Scan Check-Out</th>
+    <th>Hasil Akhir di Laporan</th>
+  </tr>
+  <tr>
+    <td>Andini Pratiwi (XI · RPL · A)</td>
+    <td>06:50</td>
+    <td><span class="badge b-hadir">HADIR</span></td>
+    <td>15:35</td>
+    <td>Tercatat lengkap &mdash; <strong>Hadir</strong></td>
+  </tr>
+  <tr>
+    <td>Bagus Setiawan (XI · RPL · A)</td>
+    <td>07:02</td>
+    <td><span class="badge b-hadir">HADIR</span></td>
+    <td>15:40</td>
+    <td>Tercatat lengkap &mdash; <strong>Hadir</strong></td>
+  </tr>
+  <tr>
+    <td>Chika Maharani (XI · RPL · A)</td>
+    <td>07:55</td>
+    <td><span class="badge b-hadir">HADIR</span></td>
+    <td>16:10</td>
+    <td>Tercatat lengkap &mdash; <strong>Hadir</strong> (masih dalam toleransi 1 jam)</td>
+  </tr>
+  <tr>
+    <td>Dimas Kurniawan (XI · RPL · A)</td>
+    <td>08:00</td>
+    <td><span class="badge b-late">TERLAMBAT</span></td>
+    <td>15:35</td>
+    <td>Tercatat lengkap &mdash; <strong>Terlambat</strong> (tepat di batas, sudah late)</td>
+  </tr>
+  <tr>
+    <td>Elsa Wijayanti (XI · RPL · A)</td>
+    <td>08:42</td>
+    <td><span class="badge b-late">TERLAMBAT</span></td>
+    <td>16:00</td>
+    <td>Tercatat lengkap &mdash; <strong>Terlambat</strong></td>
+  </tr>
+  <tr>
+    <td>Fariz Ramadhan (XI · RPL · A)</td>
+    <td>07:30</td>
+    <td><span class="badge b-hadir">HADIR</span></td>
+    <td>&mdash; (lupa scan pulang)</td>
+    <td>Auto-finalize: <code>check_out_time = 18:00</code>, <code>auto_checkout = 1</code> &rarr; <strong>Hadir</strong> dengan tanda ⚠️ (* di PDF)</td>
+  </tr>
+  <tr>
+    <td>Gita Lestari (XI · MM · A)</td>
+    <td>09:15</td>
+    <td><span class="badge b-late">TERLAMBAT</span></td>
+    <td>&mdash; (lupa scan pulang)</td>
+    <td>Auto-finalize: <code>check_out_time = 18:00</code>, <code>auto_checkout = 1</code> &rarr; <strong>Terlambat</strong> dengan tanda ⚠️ (* di PDF)</td>
+  </tr>
+  <tr>
+    <td>Haikal Pranoto (XI · MM · A)</td>
+    <td>&mdash; (tidak scan sama sekali)</td>
+    <td>&mdash;</td>
+    <td>&mdash;</td>
+    <td>Auto-finalize menyisipkan baris baru ber-status <code>absent</code> &rarr; <strong>Absen</strong> dan muncul di kolom A laporan</td>
+  </tr>
+</table>
+
+<h2>6. Penjelasan Kolom Laporan</h2>
+<table>
+  <tr><th>Kolom</th><th>Arti</th><th>Sumber Data</th></tr>
+  <tr><td><span class="badge b-hadir">P / Hadir</span></td><td>Jumlah hari siswa check-in tepat waktu (sebelum <code>clockIn + 1 jam</code>). Termasuk hari di mana check-out diisi otomatis oleh sistem.</td><td>Baris <code>attendance.status = 'present'</code>.</td></tr>
+  <tr><td><span class="badge b-late">L / Terlambat</span></td><td>Jumlah hari siswa check-in melewati toleransi 1 jam. Termasuk hari di mana check-out diisi otomatis oleh sistem.</td><td>Baris <code>attendance.status = 'late'</code>.</td></tr>
+  <tr><td><span class="badge b-absen">A / Absen</span></td><td>Jumlah hari kerja di mana siswa <strong>tidak melakukan check-in sama sekali</strong> &mdash; benar-benar tidak hadir di sekolah.</td><td>Baris <code>attendance.status = 'absent'</code> hasil <em>auto-finalize</em> (lihat Section 8).</td></tr>
+  <tr><td><span class="badge b-info">% Persentase</span></td><td><code>(Hadir + Terlambat) ÷ Total hari × 100%</code> &mdash; tingkat kehadiran siswa pada periode filter.</td><td>Hasil agregasi di <code>ReportAggregator.summarize</code>.</td></tr>
+</table>
+<p>Catatan: pada dialog detail siswa, hari yang check-out-nya diisi otomatis ditandai dengan ikon ⚠️ di samping jam pulang. Di PDF, tanda yang sama ditampilkan sebagai asterisk <code>*</code> setelah jam check-out, dengan keterangan kaki <em>"check-out filled automatically..."</em> pada halaman detail siswa. Lupa check-out <strong>bukan</strong> termasuk absen &mdash; siswa tetap dihitung Hadir / Terlambat sesuai jam check-in.</p>
+
+<h2>7. Mengubah Jam Sekolah</h2>
+<p>Untuk mengubah jam absensi:</p>
+<ol>
+  <li>Tekan ikon menu di layar kamera lalu masukkan PIN admin.</li>
+  <li>Pilih <strong>Settings</strong>.</li>
+  <li>Pada bagian <strong>02 · SCHEDULE &rarr; School hours</strong>:
+    <ul>
+      <li>Ketuk kartu <strong>CLOCK-IN</strong> untuk mengubah jam masuk.</li>
+      <li>Ketuk kartu <strong>CLOCK-OUT</strong> untuk mengubah jam paling awal pulang.</li>
+      <li>Ketuk kartu <strong>LAST CHECK-OUT</strong> untuk mengubah batas akhir harian.</li>
+    </ul>
+  </li>
+  <li>Pengaturan tersimpan otomatis dan langsung berlaku untuk scan berikutnya.</li>
+</ol>
+<p><strong>Toleransi keterlambatan tetap 1 jam</strong> setelah <code>clock_in_time</code> &mdash; nilai ini tertanam di kode (<code>lib/core/utils/time_utils.dart</code>) dan bukan dikonfigurasi melalui Settings. Jika jam masuk diubah misalnya menjadi <code>07:30</code>, maka batas keterlambatan otomatis bergeser ke <strong>08:30</strong>.</p>
+
+<h2 id="auto-finalize">8. Auto-Finalize</h2>
+<p>Sebelum penyempurnaan ini, "absen" diartikan keliru sebagai <em>"baris attendance tanpa <code>check_out_time</code>"</em>. Akibatnya siswa yang lupa scan pulang menghilang dari laporan, sedangkan siswa yang tidak datang sama sekali pun tidak terlihat. <strong>Auto-finalize</strong> memperbaiki kedua kasus tersebut.</p>
+
+<h3>8.1 Apa yang dilakukan</h3>
+<table>
+  <tr><th>Kondisi data</th><th>Aksi auto-finalize</th></tr>
+  <tr>
+    <td>Tidak ada baris <code>attendance</code> untuk pasangan (siswa, hari)</td>
+    <td><code>INSERT</code> baris baru: <code>status = 'absent'</code>, <code>check_in_time = NULL</code>, <code>check_out_time = NULL</code>, <code>auto_checkout = 0</code>.</td>
+  </tr>
+  <tr>
+    <td>Ada baris dengan <code>check_in_time</code> terisi, tapi <code>check_out_time</code> kosong</td>
+    <td><code>UPDATE</code> baris: <code>check_out_time = last_check_out_time</code>, <code>auto_checkout = 1</code>. Status (<code>present</code> / <code>late</code>) tetap, mencerminkan jam check-in asli.</td>
+  </tr>
+  <tr>
+    <td>Baris sudah lengkap (<code>check_out_time</code> terisi) atau sudah ber-status <code>absent</code></td>
+    <td>Tidak ada aksi (no-op).</td>
+  </tr>
+</table>
+
+<h3>8.2 Kapan dijalankan</h3>
+<ul>
+  <li><strong>Saat aplikasi dibuka</strong> &mdash; di <code>main.dart</code>, fungsi dipanggil <em>fire-and-forget</em> (<code>unawaited</code>) sehingga tidak memperlambat startup terminal.</li>
+  <li><strong>Saat halaman Reports dimuat</strong> &mdash; di <code>reports_page._load()</code>, dipanggil dengan <code>await</code> agar laporan yang ditampilkan sudah final.</li>
+</ul>
+
+<h3>8.3 Rentang waktu yang diproses</h3>
+<p>Auto-finalize berjalan untuk setiap <strong>hari kerja</strong> (Senin–Jumat) dalam rentang berikut:</p>
+<ul>
+  <li><strong>Mulai</strong>: tanggal <code>created_at</code> tertua dari seluruh siswa terdaftar (non-draft, sudah punya embedding). Tidak menyisipkan "absen" untuk hari sebelum siswa dibuat.</li>
+  <li><strong>Akhir</strong>: kemarin (default), atau <strong>hari ini</strong> bila <code>now &gt; last_check_out_time</code>. Sebelum batas tersebut hari ini tidak disentuh agar siswa yang masih scan pulang tidak ter-overwrite.</li>
+</ul>
+<p>Hari Sabtu &amp; Minggu otomatis dilewati (selaras dengan logika seeder). Hari libur sekolah saat ini <strong>belum</strong> didukung; pada tanggal libur seluruh siswa akan terlihat sebagai <em>Absen</em> &mdash; admin dapat mengabaikan kolom A untuk tanggal-tanggal tersebut.</p>
+
+<h3>8.4 Idempotency</h3>
+<p>Auto-finalize aman dijalankan berkali-kali untuk hari yang sama:</p>
+<ul>
+  <li><code>INSERT</code> absent dilindungi <code>UNIQUE(student_id, date)</code> + <code>ConflictAlgorithm.ignore</code> &rarr; tidak pernah duplikat.</li>
+  <li><code>UPDATE</code> auto-checkout dibatasi <code>WHERE check_in_time IS NOT NULL AND check_out_time IS NULL</code> &rarr; tidak menyentuh baris yang sudah complete (manual maupun hasil run sebelumnya).</li>
+</ul>
+
+<h3>8.5 Dampak terhadap kode lain</h3>
+<table>
+  <tr><th>Tempat</th><th>Yang berubah</th></tr>
+  <tr><td><code>AppDatabase.queryAttendance</code></td><td>Parameter <code>onlyCompleted</code> default berubah dari <code>true</code> &rarr; <code>false</code>. Semua status (present/late/absent) ikut masuk laporan.</td></tr>
+  <tr><td><code>AppDatabase</code> method baru</td><td><code>insertAbsentRecord(studentId, day)</code> &amp; <code>autoFinalizeCheckout(studentId, day, time)</code>.</td></tr>
+  <tr><td>Schema</td><td>Versi DB naik ke <strong>3</strong>. Migration ladder menambah kolom <code>auto_checkout INTEGER NOT NULL DEFAULT 0</code> di tabel <code>attendance</code> tanpa merusak data v2.</td></tr>
+  <tr><td><code>AttendanceRecord</code></td><td>Tambah field <code>autoCheckout : bool</code>.</td></tr>
+</table>
+
+</body>
+</html>

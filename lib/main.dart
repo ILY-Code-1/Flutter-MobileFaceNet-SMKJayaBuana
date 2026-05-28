@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'core/constants/app_strings.dart';
 import 'core/data/app_database.dart';
 import 'core/data/app_settings.dart';
+import 'core/services/attendance_finalizer_service.dart';
 import 'core/theme/app_theme.dart';
 import 'routing/app_router.dart';
 
@@ -16,6 +19,11 @@ Future<void> main() async {
 
   await SettingsService.instance.ensureDefaults();
   final hasAdmin = await AppDatabase.instance.hasAdmin();
+
+  // Fire-and-forget: walk past weekdays to insert "absent" placeholders
+  // for missing students and auto-fill check-out for those who forgot. We
+  // don't block startup on it — Reports also re-runs it before loading.
+  unawaited(AttendanceFinalizerService.instance.finalizePastDays());
 
   runApp(JayaBuanaApp(
     initialRoute: hasAdmin ? AppRoutes.camera : AppRoutes.registration,

@@ -160,6 +160,11 @@ class AttendanceRecord {
   final String? checkOutTime;
   final AttendanceStatus status;
 
+  /// True when [checkOutTime] was filled by the auto-finalize routine
+  /// (student forgot to scan out), as opposed to a real scan by the
+  /// student. Reports show a small indicator next to these rows.
+  final bool autoCheckout;
+
   const AttendanceRecord({
     required this.id,
     required this.studentId,
@@ -167,6 +172,7 @@ class AttendanceRecord {
     required this.checkInTime,
     required this.checkOutTime,
     required this.status,
+    required this.autoCheckout,
   });
 
   factory AttendanceRecord.fromRow(Map<String, Object?> row) =>
@@ -178,6 +184,7 @@ class AttendanceRecord {
         checkOutTime: row['check_out_time'] as String?,
         status: AttendanceStatusX.fromCode(
             (row['status'] as String?) ?? 'absent'),
+        autoCheckout: ((row['auto_checkout'] as int?) ?? 0) == 1,
       );
 
   Map<String, Object?> toRow() => {
@@ -186,6 +193,7 @@ class AttendanceRecord {
         'check_in_time': checkInTime,
         'check_out_time': checkOutTime,
         'status': status.code,
+        'auto_checkout': autoCheckout ? 1 : 0,
       };
 }
 

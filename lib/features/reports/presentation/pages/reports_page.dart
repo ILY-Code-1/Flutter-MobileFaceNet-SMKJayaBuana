@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/data/app_database.dart';
 import '../../../../core/data/models.dart';
+import '../../../../core/services/attendance_finalizer_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/jb_button.dart';
@@ -53,19 +54,30 @@ class _ReportsPageState extends State<ReportsPage> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final classes = await AppDatabase.instance.listClasses();
-    final rows = await AppDatabase.instance.queryAttendance(
-      datePrefix: _datePrefix,
-      classId: _classFilterId,
-    );
-    final summary = ReportAggregator.summarize(rows);
-    if (!mounted) return;
-    setState(() {
-      _classes = classes;
-      _summary = summary;
-      _rows = rows;
-      _loading = false;
-    });
+    try {
+      // Finalize past weekdays (insert absent placeholders + auto check-out
+      // those who forgot) so the report reflects the latest rules.
+      await AttendanceFinalizerService.instance.finalizePastDays();
+      final classes = await AppDatabase.instance.listClasses();
+      final rows = await AppDatabase.instance.queryAttendance(
+        datePrefix: _datePrefix,
+        classId: _classFilterId,
+      );
+      final summary = ReportAggregator.summarize(rows);
+      if (!mounted) return;
+      setState(() {
+        _classes = classes;
+        _summary = summary;
+        _rows = rows;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat laporan: $e')),
+      );
+    }
   }
 
   String get _classFilterLabel {
@@ -387,7 +399,7 @@ class _ReportsPageState extends State<ReportsPage> {
                         Padding(
                           padding: const EdgeInsets.all(AppSpacing.x22),
                           child: Text(
-                            'No completed attendance found for this filter.',
+                            'No attendance records for this filter.',
                             style: TextStyle(
                                 color: c.textMute,
                                 fontWeight: FontWeight.w700,

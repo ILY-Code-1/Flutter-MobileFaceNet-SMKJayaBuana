@@ -91,6 +91,8 @@ class StudentDetailDialog extends StatelessWidget {
                               : status == AttendanceStatus.late
                                   ? c.warn
                                   : c.danger;
+                          final auto =
+                              ((r['auto_checkout'] as int?) ?? 0) == 1;
                           return ListTile(
                             dense: true,
                             contentPadding: EdgeInsets.zero,
@@ -100,7 +102,9 @@ class StudentDetailDialog extends StatelessWidget {
                                     fontWeight: FontWeight.w800,
                                     fontSize: 13)),
                             subtitle: Text(
-                              'In: ${r['check_in_time'] ?? '—'} · Out: ${r['check_out_time'] ?? '—'}',
+                              'In: ${r['check_in_time'] ?? '—'} · '
+                              'Out: ${r['check_out_time'] ?? '—'}'
+                              '${auto ? '  ⚠️ auto' : ''}',
                               style: TextStyle(
                                   color: c.textMute,
                                   fontSize: 12,

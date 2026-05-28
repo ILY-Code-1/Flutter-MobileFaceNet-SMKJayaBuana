@@ -88,9 +88,10 @@
         <ul class="tree">
           <li><span class="col">studentId</span> : string &mdash; referensi &rarr; students/{studentId}</li>
           <li><span class="col">date</span> : string &mdash; "2026-05-21" (format YYYY-MM-DD)</li>
-          <li><span class="col">checkInTime</span> : string &mdash; "07:02:14"</li>
-          <li><span class="col">checkOutTime</span> : string &mdash; "15:35:40"</li>
+          <li><span class="col">checkInTime</span> : string? &mdash; "07:02:14" (null saat status 'absent')</li>
+          <li><span class="col">checkOutTime</span> : string? &mdash; "15:35:40" (null saat status 'absent')</li>
           <li><span class="col">status</span> : string &mdash; "present" | "late" | "absent"</li>
+          <li><span class="col">autoCheckout</span> : boolean &mdash; true bila check-out diisi otomatis oleh sistem</li>
         </ul>
       </li>
     </ul>
@@ -184,15 +185,16 @@ Setting --> Kelas : activeClassIds
   <tr><td>16</td><td>attendanceId</td><td>string (Document ID)</td><td>attendance</td><td>Identitas dokumen absensi, pola {studentId}_{date}</td><td>Document ID, unik</td></tr>
   <tr><td>17</td><td>studentId</td><td>string</td><td>attendance</td><td>Referensi siswa pemilik absensi</td><td>required, indexed, FK &rarr; students</td></tr>
   <tr><td>18</td><td>date</td><td>string</td><td>attendance</td><td>Tanggal absensi format YYYY-MM-DD</td><td>required, indexed</td></tr>
-  <tr><td>19</td><td>checkInTime</td><td>string</td><td>attendance</td><td>Jam masuk format HH:mm:ss</td><td>optional</td></tr>
-  <tr><td>20</td><td>checkOutTime</td><td>string</td><td>attendance</td><td>Jam pulang format HH:mm:ss</td><td>optional</td></tr>
+  <tr><td>19</td><td>checkInTime</td><td>string</td><td>attendance</td><td>Jam masuk format HH:mm:ss. Null untuk baris ber-status 'absent' yang dibuat oleh auto-finalize.</td><td>optional</td></tr>
+  <tr><td>20</td><td>checkOutTime</td><td>string</td><td>attendance</td><td>Jam pulang format HH:mm:ss. Diisi otomatis dengan last_check_out_time bila autoCheckout = true.</td><td>optional</td></tr>
   <tr><td>21</td><td>status</td><td>string</td><td>attendance</td><td>Status kehadiran: present / late / absent</td><td>required</td></tr>
-  <tr><td>22</td><td>activeClassIds</td><td>array&lt;string&gt;</td><td>settings</td><td>Daftar kelas yang dikenali oleh terminal ini</td><td>optional (kosong = semua kelas)</td></tr>
-  <tr><td>23</td><td>clockIn</td><td>string</td><td>settings</td><td>Jam masuk sekolah, mis. "07:00"</td><td>required</td></tr>
-  <tr><td>24</td><td>clockOut</td><td>string</td><td>settings</td><td>Jam pulang sekolah, mis. "15:30"</td><td>required</td></tr>
-  <tr><td>25</td><td>lastCheckOut</td><td>string</td><td>settings</td><td>Batas akhir check-out sebelum dianggap absen</td><td>required</td></tr>
-  <tr><td>26</td><td>deviceName</td><td>string</td><td>settings</td><td>Nama perangkat terminal absensi</td><td>required</td></tr>
-  <tr><td>27</td><td>soundOnScan</td><td>string</td><td>settings</td><td>Kunci efek suara saat pemindaian wajah</td><td>required</td></tr>
+  <tr><td>22</td><td>autoCheckout</td><td>boolean</td><td>attendance</td><td>True bila check-out diisi otomatis oleh sistem (siswa hadir tapi lupa scan pulang). Tidak mengubah status present/late.</td><td>required, default false</td></tr>
+  <tr><td>23</td><td>activeClassIds</td><td>array&lt;string&gt;</td><td>settings</td><td>Daftar kelas yang dikenali oleh terminal ini</td><td>optional (kosong = semua kelas)</td></tr>
+  <tr><td>24</td><td>clockIn</td><td>string</td><td>settings</td><td>Jam masuk sekolah, mis. "07:00"</td><td>required</td></tr>
+  <tr><td>25</td><td>clockOut</td><td>string</td><td>settings</td><td>Jam pulang sekolah, mis. "15:30"</td><td>required</td></tr>
+  <tr><td>26</td><td>lastCheckOut</td><td>string</td><td>settings</td><td>Batas akhir check-out; setelah jam ini auto-finalize berjalan untuk hari itu</td><td>required</td></tr>
+  <tr><td>27</td><td>deviceName</td><td>string</td><td>settings</td><td>Nama perangkat terminal absensi</td><td>required</td></tr>
+  <tr><td>28</td><td>soundOnScan</td><td>string</td><td>settings</td><td>Kunci efek suara saat pemindaian wajah</td><td>required</td></tr>
 </table>
 
 </body>
