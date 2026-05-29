@@ -1,5 +1,5 @@
-# Launch Screen Assets
+# Aset Layar Peluncuran
 
-You can customize the launch screen with your own desired assets by replacing the image files in this directory.
+Anda dapat menyesuaikan layar peluncuran dengan aset yang Anda inginkan dengan mengganti berkas gambar di direktori ini.
 
-You can also do it by opening your Flutter project's Xcode project with `open ios/Runner.xcworkspace`, selecting `Runner/Assets.xcassets` in the Project Navigator and dropping in the desired images.
+Anda juga dapat melakukannya dengan membuka proyek Xcode dari proyek Flutter Anda menggunakan `open ios/Runner.xcworkspace`, memilih `Runner/Assets.xcassets` di Project Navigator, lalu menjatuhkan gambar yang diinginkan.
