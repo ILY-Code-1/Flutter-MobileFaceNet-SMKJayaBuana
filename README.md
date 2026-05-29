@@ -10,6 +10,10 @@ Semuanya berjalan secara lokal — tidak ada backend, tidak ada akun internet,
 tidak ada sinkronisasi cloud. Seluruh data tersimpan di direktori dokumen
 aplikasi pada perangkat.
 
+> 📘 **Panduan Pengguna (Bahasa Indonesia):**
+> [**⬇️ Unduh PDF**](PANDUAN_PENGGUNA.pdf) · atau baca versi
+> [Markdown](PANDUAN_PENGGUNA.md).
+
 ---
 
 ## Daftar isi

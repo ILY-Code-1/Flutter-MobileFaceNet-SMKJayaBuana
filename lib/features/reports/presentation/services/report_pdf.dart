@@ -218,7 +218,7 @@ class ReportPdf {
           pw.TableRow(
             children: [
               _td(s.name, bold: true),
-              _td('${s.nis} · ${s.className ?? '—'}'),
+              _td('${s.nis} · ${s.className ?? '-'}'),
               _td('${s.present}',
                   color: _green, align: pw.TextAlign.center, bold: true),
               _td('${s.late}',
@@ -250,7 +250,7 @@ class ReportPdf {
           ),
           pw.SizedBox(height: 2),
           pw.Text(
-            'NIS ${s.nis}  ·  ${s.className ?? '—'}',
+            'NIS ${s.nis}  ·  ${s.className ?? '-'}',
             style: const pw.TextStyle(color: _muted, fontSize: 10),
           ),
           pw.SizedBox(height: 10),
@@ -333,7 +333,7 @@ class ReportPdf {
     return pw.TableRow(
       children: [
         _td('$no', align: pw.TextAlign.center),
-        _td(r['date'] as String? ?? '—'),
+        _td(r['date'] as String? ?? '-'),
         _td(_hm(r['check_in_time'] as String?), align: pw.TextAlign.center),
         _td(auto ? '$outText *' : outText, align: pw.TextAlign.center),
         _td(label, color: color, align: pw.TextAlign.center, bold: true),
@@ -341,9 +341,11 @@ class ReportPdf {
     );
   }
 
-  /// Trim an "HH:mm:ss" string down to "HH:mm"; returns "—" when empty.
+  /// Trim an "HH:mm:ss" string down to "HH:mm"; returns "-" when empty.
+  /// Uses an ASCII hyphen (not an em dash) because the default PDF font
+  /// has no glyph for "—", which would render as a tofu box.
   static String _hm(String? hms) {
-    if (hms == null || hms.isEmpty) return '—';
+    if (hms == null || hms.isEmpty) return '-';
     final parts = hms.split(':');
     if (parts.length < 2) return hms;
     return '${parts[0]}:${parts[1]}';
