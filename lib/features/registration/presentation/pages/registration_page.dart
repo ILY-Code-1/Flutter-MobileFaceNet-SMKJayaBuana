@@ -6,6 +6,7 @@ import '../../../../core/data/seed.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/pin_validator.dart';
+import '../../../../core/widgets/double_tap_back_to_exit.dart';
 import '../../../../core/widgets/jb_button.dart';
 import '../../../../core/widgets/jb_icons.dart';
 import '../../../../core/widgets/jb_pin_dots.dart';
@@ -167,7 +168,8 @@ class _RegistrationPageState extends State<RegistrationPage> {
     final theme = Theme.of(context);
     final isConfirm = _stage == _PinStage.confirm;
 
-    return Scaffold(
+    return DoubleTapBackToExit(
+      child: Scaffold(
       backgroundColor: c.bg,
       body: SafeArea(
         child: Stack(
@@ -343,6 +345,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

@@ -12,6 +12,7 @@ import '../../../../core/services/face_recognition_service.dart';
 import '../../../../core/services/sound_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/double_tap_back_to_exit.dart';
 import '../../../../core/widgets/jb_icons.dart';
 import '../../../../routing/app_router.dart';
 import '../widgets/camera_top_bar.dart';
@@ -361,11 +362,12 @@ class _CameraIdlePageState extends State<CameraIdlePage>
   @override
   Widget build(BuildContext context) {
     final hasFace = _faceBox != null;
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
-      child: Scaffold(
-        backgroundColor: const Color(0xFF0A1426),
-        body: Stack(
+    return DoubleTapBackToExit(
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
+        child: Scaffold(
+          backgroundColor: const Color(0xFF0A1426),
+          body: Stack(
           fit: StackFit.expand,
           children: [
             _liveCameraOrFallback(),
@@ -437,6 +439,7 @@ class _CameraIdlePageState extends State<CameraIdlePage>
               ),
             ),
           ],
+        ),
         ),
       ),
     );
