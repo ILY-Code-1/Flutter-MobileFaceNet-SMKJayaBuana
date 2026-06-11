@@ -1,0 +1,36 @@
+@startuml
+title Arsitektur Perangkat Lunak\nAplikasi Absensi Wajah SMK Jaya Buana
+
+left to right direction
+
+' ===== Tema minimalis =====
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam roundCorner 15
+skinparam ArrowColor #3C5A99
+skinparam ArrowFontColor #5A6584
+skinparam rectangle {
+  BackgroundColor #EAF2FB
+  BorderColor #3C5A99
+  FontColor #0F2545
+}
+
+rectangle "Flutter UI Layer\n(Presentation · Flutter / Dart)\n\nCamera · Dashboard · Reports" as UI
+rectangle "Business Logic\n(Domain / Service · Dart)\n\nFace Detection · Attendance Service · Report Aggregator" as BL
+rectangle "Local Storage\n(Data · SQLite / sqflite)\n\nData siswa · absensi · settings" as DB
+rectangle "ML Engine\n(MobileFaceNet + TFLite)\n\nFace detection + recognition" as ML
+rectangle "Device Hardware\n(Android / iOS)\n\nKamera · Storage" as HW
+
+UI <--> BL : event & data
+BL <--> DB : query / simpan data
+BL <--> ML : infer model
+HW --> UI : akses kamera & file
+
+legend right
+  -->  Dependency (satu arah)
+  <-->  Komunikasi dua arah
+endlegend
+
+@enduml

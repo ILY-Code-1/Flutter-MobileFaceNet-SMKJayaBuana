@@ -1,0 +1,42 @@
+@startuml
+title Activity Diagram Sistem Absensi Berjalan (Manual) - SMK Jaya Buana
+
+' ===== Tema clean =====
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam ArrowColor #3C5A99
+skinparam ActivityBackgroundColor #E8F0FE
+skinparam ActivityBorderColor #3C5A99
+skinparam ActivityDiamondBackgroundColor #FFF3C4
+skinparam ActivityDiamondBorderColor #C8A431
+skinparam ActivityStartColor #1F7A4A
+skinparam ActivityEndColor #B0344A
+skinparam SwimlaneTitleFontStyle bold
+
+|#F0F5FF|Guru / Wali Kelas|
+start
+:Buka buku absensi;
+
+repeat
+  :Panggil nama siswa;
+
+  |#FFF8E8|Siswa|
+  :Dengar panggilan;
+
+  if (Apakah siswa hadir?) then (Hadir)
+    :Menjawab "Hadir";
+    |Guru / Wali Kelas|
+    :Tandai "H" di buku;
+  else (Tidak hadir)
+    |Guru / Wali Kelas|
+    :Catat status A/S/I sesuai keterangan;
+  endif
+repeat while (Masih ada siswa berikutnya?) is (Ya)
+->Tidak;
+
+:Hitung rekap absensi harian;
+:Tutup & simpan buku absensi;
+stop
+@enduml
