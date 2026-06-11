@@ -38,6 +38,9 @@ class AppStrings {
   static const scanning = 'SCANNING…';
   static const startScan = 'Start scan';
 
+  // ---------- Exit confirmation ----------
+  static const pressAgainToExit = 'Press back again to exit';
+
   // ---------- Password Gate (03) ----------
   static const adminAccessRequired = 'Admin access required';
   static const adminAccessSub =
